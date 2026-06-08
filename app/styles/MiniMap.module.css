@@ -1,0 +1,121 @@
+.container {
+  position: fixed;
+  bottom: 2rem;
+  left: 2rem;
+  z-index: 50;
+  width: 200px;
+  height: 200px;
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  display: none;
+}
+
+.mapArea {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.connections {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---- Dots ---- */
+/* Large transparent hit area so close-together scenes stay easy to click */
+.dotHit {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+/* Hovered dot jumps to the front so overlapping points are reachable */
+.dotHit:hover {
+  z-index: 6;
+}
+
+.dotHitActive {
+  z-index: 5;
+}
+
+/* Inner visual dot */
+.dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-accent-secondary);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  transition: transform var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dotHit:hover .dot {
+  transform: scale(1.6);
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 10px rgba(200, 164, 78, 0.6);
+}
+
+.dotActive {
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 8px rgba(200, 164, 78, 0.4);
+}
+
+.dotPulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--color-accent-primary);
+  animation: pulseRing 2s ease-out infinite;
+}
+
+/* ---- Facing cone (active location only) ---- */
+.cone {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 46px;
+  /* transform (translate + rotate) is driven live from the camera yaw in JS */
+  transform: translate(-50%, -50%);
+  transform-origin: center center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 768px) {
+  .container {
+    width: 150px;
+    bottom: var(--space-md);
+    right: var(--space-md);
+  }
+
+  .mapArea {
+    height: 120px;
+  }
+}
