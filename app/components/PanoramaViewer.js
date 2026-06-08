@@ -1,18 +1,22 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import BuilderMode from './BuilderMode';
+import BrandMark from './BrandMark';
 import { getArrivalYaw } from '../data/scenes';
 import styles from '../styles/PanoramaViewer.module.css';
+
+// Cache decoded textures so the scene handoff at the end of a transition is instant
+// (the incoming sphere has already fetched the destination image).
+THREE.Cache.enabled = true;
 
 /* -------------------------------------------------------
    Panorama Sphere — renders equirectangular image inside
    ------------------------------------------------------- */
-function PanoramaSphere({ imageUrl, onLoaded, isWarpingOut, isWarpingIn, baseRadius = 500, dollyOffset }) {
+function PanoramaSphere({ imageUrl, onLoaded, baseRadius = 500 }) {
   const meshRef = useRef();
-  const materialRef = useRef();
   const [texture, setTexture] = useState(null);
 
   useEffect(() => {
@@ -38,52 +42,16 @@ function PanoramaSphere({ imageUrl, onLoaded, isWarpingOut, isWarpingIn, baseRad
     };
   }, [imageUrl]);
 
-  useFrame(() => {
-    if (!meshRef.current || !materialRef.current) return;
-    const material = materialRef.current;
-    const pos = meshRef.current.position;
-
-    // Note: scaling a centered sphere is visually inert (camera sits at its center),
-    // so motion comes from OPACITY (crossfade) + POSITION (dolly), not scale.
-    if (isWarpingOut) {
-      // The scene we're leaving fades away. Slide it gently backward so its near wall
-      // sweeps past us — reads as pushing forward out of this scene.
-      material.opacity += (0 - material.opacity) * 0.1;
-      if (dollyOffset) {
-        pos.x += (-dollyOffset[0] - pos.x) * 0.1;
-        pos.y += (-dollyOffset[1] - pos.y) * 0.1;
-        pos.z += (-dollyOffset[2] - pos.z) * 0.1;
-      }
-    } else if (isWarpingIn) {
-      // The destination fades in while gliding from "a step ahead" to centered: the
-      // wall we're walking toward grows to full size — real forward motion into it.
-      material.opacity += (1 - material.opacity) * 0.12;
-      pos.x += (0 - pos.x) * 0.12;
-      pos.y += (0 - pos.y) * 0.12;
-      pos.z += (0 - pos.z) * 0.12;
-    } else {
-      material.opacity += (1 - material.opacity) * 0.1;
-      pos.set(0, 0, 0);
-    }
-  });
-
   if (!texture) return null;
 
+  // A single static sphere. Scene changes are hidden behind the transition fade
+  // (see the dim overlay in the main component), so there's no crossfade, dolly, or
+  // rotation here — the angle change to the next scene happens while the screen is
+  // covered, which is what makes the jump look like a straight step forward.
   return (
-    <mesh
-      ref={meshRef}
-      scale={[-1, 1, 1]}
-      position={isWarpingIn && dollyOffset ? dollyOffset : [0, 0, 0]}
-    >
+    <mesh ref={meshRef} scale={[-1, 1, 1]}>
       <sphereGeometry args={[baseRadius, 64, 32]} />
-      <meshBasicMaterial
-        ref={materialRef}
-        map={texture}
-        side={THREE.BackSide}
-        transparent
-        opacity={isWarpingIn ? 0 : 1}
-        depthWrite={false}
-      />
+      <meshBasicMaterial map={texture} side={THREE.BackSide} depthWrite={false} />
     </mesh>
   );
 }
@@ -263,7 +231,7 @@ function PanoramaHotspot({ targetScene, currentScene, onClick, baseYawOffset, ex
   if (explicitYaw !== undefined && explicitPitch !== undefined) {
     // Manual hotspot placement
     const distance = 80;
-    
+
     // In Three.js, camera looks down -Z. With euler rotation Y, 
     // X = -sin(Y), Z = -cos(Y). Since our sphere is scaled [-1, 1, 1], X is flipped visually.
     // However, if we just place the object in the same parent coordinate space, we use standard math.
@@ -278,10 +246,10 @@ function PanoramaHotspot({ targetScene, currentScene, onClick, baseYawOffset, ex
     // Automatic math fallback
     let dx = targetScene.position[0] - currentScene.position[0];
     let dz = targetScene.position[2] - currentScene.position[2];
-    
+
     let angle = Math.atan2(dx, dz);
     visualAngle = angle - baseYawOffset;
-    
+
     const distance = isDive ? 150 : 80;
     position = [
       Math.sin(visualAngle) * distance,
@@ -313,31 +281,31 @@ function PanoramaHotspot({ targetScene, currentScene, onClick, baseYawOffset, ex
         <group>
           <mesh position={[0, 10, 0]}>
             <coneGeometry args={[3, 6, 4]} />
-            <meshBasicMaterial color={hovered ? '#c8a44e' : '#ffffff'} opacity={0.8} transparent />
+            <meshBasicMaterial color={'#8b8d57'} opacity={0.8} transparent />
           </mesh>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[4, 6, 32]} />
-            <meshBasicMaterial color={hovered ? '#c8a44e' : '#ffffff'} opacity={0.4} transparent side={THREE.DoubleSide} />
+            <meshBasicMaterial color={'#8b8d57'} opacity={0.4} transparent side={THREE.DoubleSide} />
           </mesh>
         </group>
       ) : explicitPitch !== undefined ? (
         // Manual hotspot (Billboard facing camera)
         <group rotation={[0, 0, 0]} scale={[0.5, 0.5, 0.5]} ref={(ref) => {
-           if (ref) ref.lookAt(0, 0, 0); // Camera is at origin
+          if (ref) ref.lookAt(0, 0, 0); // Camera is at origin
         }}>
           <mesh>
             <circleGeometry args={[4, 32]} />
-            <meshBasicMaterial color={hovered ? '#c8a44e' : '#ffffff'} transparent opacity={hovered ? 0.8 : 0.5} side={THREE.DoubleSide} />
+            <meshBasicMaterial color={'#8b8d57'} transparent opacity={hovered ? 0.8 : 0.5} side={THREE.DoubleSide} />
           </mesh>
           <mesh position={[0, 1, 0.1]}>
-             <shapeGeometry args={[
-               new THREE.Shape()
+            <shapeGeometry args={[
+              new THREE.Shape()
                 .moveTo(-2, -1)
                 .lineTo(0, 2)
                 .lineTo(2, -1)
                 .lineTo(0, 0)
-             ]} />
-             <meshBasicMaterial color={hovered ? '#fff' : '#eee'} transparent opacity={0.9} side={THREE.DoubleSide} />
+            ]} />
+            <meshBasicMaterial color={hovered ? '#fff' : '#eee'} transparent opacity={0.9} side={THREE.DoubleSide} />
           </mesh>
         </group>
       ) : (
@@ -345,17 +313,17 @@ function PanoramaHotspot({ targetScene, currentScene, onClick, baseYawOffset, ex
         <group rotation={[-Math.PI / 2, 0, -visualAngle + Math.PI]} scale={[0.5, 0.5, 0.5]}>
           <mesh>
             <circleGeometry args={[4, 32]} />
-            <meshBasicMaterial color={hovered ? '#c8a44e' : '#ffffff'} transparent opacity={hovered ? 0.6 : 0.3} side={THREE.DoubleSide} />
+            <meshBasicMaterial color={'#8b8d57'} transparent opacity={hovered ? 0.6 : 0.3} side={THREE.DoubleSide} />
           </mesh>
           <mesh position={[0, 1, 0.1]}>
-             <shapeGeometry args={[
-               new THREE.Shape()
+            <shapeGeometry args={[
+              new THREE.Shape()
                 .moveTo(-2, -1)
                 .lineTo(0, 2)
                 .lineTo(2, -1)
                 .lineTo(0, 0)
-             ]} />
-             <meshBasicMaterial color={hovered ? '#fff' : '#eee'} transparent opacity={0.9} side={THREE.DoubleSide} />
+            ]} />
+            <meshBasicMaterial color={hovered ? '#fff' : '#eee'} transparent opacity={0.9} side={THREE.DoubleSide} />
           </mesh>
         </group>
       )}
@@ -409,32 +377,17 @@ export default function PanoramaViewer({
     }
   }, [currentScene.id, isTransitioning, adjacentScenes]);
 
-  // targetYaw now carries the ARRIVAL camera euler.y for the destination scene,
-  // pre-computed at click time by getArrivalYaw() so the viewer keeps facing the
-  // exact same physical direction across the cut (real continuity).
-  //
-  // During the 600ms transition currentScene is still the SOURCE, so we hold the
-  // camera precisely where the user left it — no rotation, just the FOV push-in and
-  // vignette (warpYaw = null). When the cut flips currentScene to the DESTINATION,
-  // the snap effect inside PanoramaControls applies targetYaw as the new euler.y.
-  // Since that angle represents the same world direction, the swap is seamless: the
-  // view never "changes and then goes" — it just moves forward.
+  // targetYaw carries the ARRIVAL camera euler.y for the destination scene (from
+  // getArrivalYaw at click time). The camera is held still during the transition and
+  // only snaps to this angle at the cut — and the cut happens while the dim fade
+  // covers the screen, so the angle change is never visible. The view simply fades
+  // out facing forward and fades back in facing the same way in the next scene.
   const initialYaw = targetYaw !== null ? targetYaw : (currentScene.yawOffset || 0);
-  const warpYaw = null;
-
-  // Travel direction in world space = camera forward at the arrival angle.
-  // The destination sphere starts offset this far ahead and glides to center (and the
-  // outgoing sphere slides the opposite way), so the whole cut reads as one continuous
-  // step forward into the next scene. Skipped for map jumps (no travel direction).
-  const dollyOffset = useMemo(() => {
-    if (targetYaw === null) return null;
-    const dist = 70;
-    return [-Math.sin(initialYaw) * dist, 0, -Math.cos(initialYaw) * dist];
-  }, [initialYaw, targetYaw]);
+  const warpYaw = null; // never pan during a transition — hold the view perfectly still
 
   return (
     <div className={styles.container}>
-      {/* Walking vignette: darkens edges during transition, hides the scene cut */}
+      {/* Transition fade: a quick dark dip that hides the scene swap + camera snap */}
       <div className={`${styles.walkVignette} ${isTransitioning ? styles.walkVignetteActive : ''}`} />
 
       <Canvas
@@ -442,24 +395,12 @@ export default function PanoramaViewer({
         gl={{ antialias: true, toneMapping: THREE.NoToneMapping }}
         dpr={[1, 1.5]}
       >
-        {/* The outgoing / current scene */}
+        {/* The current scene — a single sphere; scene swaps happen behind the fade */}
         <PanoramaSphere
           imageUrl={currentScene.panoramaUrl}
           onLoaded={handleLoaded}
-          isWarpingOut={isTransitioning}
           baseRadius={500}
-          dollyOffset={dollyOffset}
         />
-
-        {/* The incoming scene (renders during transition) */}
-        {incomingScene && isTransitioning && (
-          <PanoramaSphere
-            imageUrl={incomingScene.panoramaUrl}
-            isWarpingIn={true}
-            baseRadius={490} // Render slightly inside to avoid z-fighting
-            dollyOffset={dollyOffset}
-          />
-        )}
 
         <PanoramaControls
           initialYaw={initialYaw}
@@ -490,6 +431,10 @@ export default function PanoramaViewer({
           <p>Loading panorama...</p>
         </div>
       )}
+
+      <div className={styles.brandLock}>
+        <BrandMark size="sm" />
+      </div>
 
       <div className={styles.sceneInfo}>
         <div className={styles.sceneInfoBadge}>

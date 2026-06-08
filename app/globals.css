@@ -1,47 +1,48 @@
 /* ============================================
    Platinum Township — Global Design System
-   Premium dark theme with glassmorphism
+   Premium light theme · brand palette from logo
+   (sage green · warm taupe/sand · olive leaf)
    ============================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 /* ---- CSS Custom Properties ---- */
 :root {
-  /* Colors — Premium Dark Palette */
-  --color-bg-primary: #0a0a0f;
-  --color-bg-secondary: #12121a;
-  --color-bg-tertiary: #1a1a28;
-  --color-bg-glass: rgba(18, 18, 26, 0.75);
-  --color-bg-glass-hover: rgba(26, 26, 40, 0.85);
+  /* Colors — Brand light palette */
+  --color-bg-primary: #faf8f3;
+  --color-bg-secondary: #f3f0e8;
+  --color-bg-tertiary: #ece7da;
+  --color-bg-glass: rgba(255, 255, 255, 0.74);
+  --color-bg-glass-hover: rgba(255, 255, 255, 0.9);
 
-  --color-surface: rgba(255, 255, 255, 0.04);
-  --color-surface-hover: rgba(255, 255, 255, 0.08);
-  --color-surface-active: rgba(255, 255, 255, 0.12);
+  --color-surface: rgba(86, 98, 74, 0.06);
+  --color-surface-hover: rgba(86, 98, 74, 0.1);
+  --color-surface-active: rgba(86, 98, 74, 0.16);
 
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-hover: rgba(255, 255, 255, 0.15);
-  --color-border-active: rgba(255, 255, 255, 0.25);
+  --color-border: rgba(86, 98, 74, 0.18);
+  --color-border-hover: rgba(86, 98, 74, 0.32);
+  --color-border-active: rgba(86, 98, 74, 0.45);
 
-  /* Accent — Warm gold to teal gradient */
-  --color-accent-primary: #c8a44e;
-  --color-accent-secondary: #38bdf8;
-  --color-accent-tertiary: #818cf8;
-  --gradient-accent: linear-gradient(135deg, #c8a44e 0%, #38bdf8 50%, #818cf8 100%);
-  --gradient-accent-hover: linear-gradient(135deg, #d4b35e 0%, #4ecfff 50%, #929dff 100%);
-  --gradient-warm: linear-gradient(135deg, #c8a44e 0%, #e8c65e 100%);
+  /* Accent — sage → olive (from the brand logo) */
+  --color-accent-primary: #6e7b5a;
+  --color-accent-secondary: #8b8d57;
+  --color-accent-tertiary: #56624a;
+  --gradient-accent: linear-gradient(135deg, #56624a 0%, #6e7b5a 50%, #8b8d57 100%);
+  --gradient-accent-hover: linear-gradient(135deg, #4a553f 0%, #62704e 50%, #7c7e4c 100%);
+  --gradient-warm: linear-gradient(135deg, #56624a 0%, #6e7b5a 100%);
 
-  /* Text */
-  --color-text-primary: #f0f0f5;
-  --color-text-secondary: rgba(240, 240, 245, 0.65);
-  --color-text-tertiary: rgba(240, 240, 245, 0.4);
-  --color-text-accent: #c8a44e;
+  /* Text — warm ink */
+  --color-text-primary: #2b2e25;
+  --color-text-secondary: rgba(43, 46, 37, 0.7);
+  --color-text-tertiary: rgba(43, 46, 37, 0.45);
+  --color-text-accent: #56624a;
 
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px rgba(200, 164, 78, 0.15);
-  --shadow-glow-accent: 0 0 30px rgba(200, 164, 78, 0.25);
+  /* Shadows — soft, sage-tinted */
+  --shadow-sm: 0 2px 8px rgba(86, 98, 74, 0.1);
+  --shadow-md: 0 4px 16px rgba(86, 98, 74, 0.14);
+  --shadow-lg: 0 8px 32px rgba(86, 98, 74, 0.18);
+  --shadow-glow: 0 0 20px rgba(110, 123, 90, 0.18);
+  --shadow-glow-accent: 0 0 28px rgba(110, 123, 90, 0.3);
 
   /* Typography */
   --font-display: 'Outfit', sans-serif;
@@ -131,12 +132,12 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(86, 98, 74, 0.25);
   border-radius: var(--radius-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(86, 98, 74, 0.4);
 }
 
 /* ---- Utility Animations ---- */

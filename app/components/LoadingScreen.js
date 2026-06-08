@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import BrandMark from './BrandMark';
 import styles from '../styles/LoadingScreen.module.css';
 
 export default function LoadingScreen({ progress, isLoading }) {
@@ -45,29 +46,9 @@ export default function LoadingScreen({ progress, isLoading }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
             >
-              <div className={styles.logoIcon}>
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                  <path
-                    d="M24 4L4 16V32L24 44L44 32V16L24 4Z"
-                    stroke="url(#grad)"
-                    strokeWidth="2"
-                    fill="none"
-                  />
-                  <path
-                    d="M24 4V44M4 16L44 32M44 16L4 32"
-                    stroke="url(#grad)"
-                    strokeWidth="1.5"
-                    opacity="0.5"
-                  />
-                  <defs>
-                    <linearGradient id="grad" x1="0" y1="0" x2="48" y2="48">
-                      <stop stopColor="#c8a44e" />
-                      <stop offset="1" stopColor="#38bdf8" />
-                    </linearGradient>
-                  </defs>
-                </svg>
+              <div className={styles.logoFloat}>
+                <BrandMark size="lg" />
               </div>
-              <h1 className={styles.title}>Platinum Township</h1>
               <p className={styles.subtitle}>Immersive 3D Experience</p>
             </motion.div>
 

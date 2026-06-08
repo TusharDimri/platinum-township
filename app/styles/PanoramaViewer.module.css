@@ -9,24 +9,48 @@
 .walkVignette {
   position: absolute;
   inset: 0;
-  /* Dark edges, transparent center — keeps the destination visible */
-  background: radial-gradient(ellipse at center, transparent 25%, rgba(0, 0, 0, 0.82) 100%);
+  /* Full-screen dark dip — covers the whole view (slightly deeper at the edges) so
+     the scene swap and the camera's angle snap are completely hidden during a jump. */
+  background: radial-gradient(ellipse at center, rgba(22, 24, 17, 0.9) 0%, rgba(16, 18, 12, 0.98) 100%);
   pointer-events: none;
   z-index: calc(var(--z-overlay) + 5);
   opacity: 0;
-  transition: opacity 0.28s ease-in;
+  /* Ramp back IN (fade up on the new scene) after the cut */
+  transition: opacity 0.32s ease-out;
 }
 
 .walkVignetteActive {
   opacity: 1;
-  transition: opacity 0.22s ease-out;
+  /* Ramp OUT (dim the old scene) quickly so it's fully covered before the cut */
+  transition: opacity 0.2s ease-in;
 }
 
-/* ---- Scene Info Badge ---- */
-.sceneInfo {
+/* ---- Brand lockup (top-left) ---- */
+.brandLock {
   position: absolute;
   top: var(--space-lg);
   left: var(--space-lg);
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  background: var(--color-bg-glass);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-sm) var(--space-md);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  animation: slideDown 0.5s ease backwards;
+  animation-delay: 0.2s;
+}
+
+/* ---- Scene Info Badge (top-center) ---- */
+.sceneInfo {
+  position: absolute;
+  top: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
   z-index: var(--z-overlay);
   pointer-events: none;
   animation: slideDown 0.5s ease backwards;

@@ -1,281 +1,308 @@
+/* ============================================
+   Platinum Township — Landing Page
+   Clean, minimal, premium light theme.
+   Palette derived from the brand logo:
+     sage green · warm taupe/sand · olive leaf
+   Scoped here so the dark 3D walkthrough theme
+   (globals.css) stays untouched.
+   ============================================ */
+
 .page {
+  /* Brand tokens (local to the landing page) */
+  --sage-deep: #56624a;
+  --sage: #6e7b5a;
+  --olive: #8b8d57;
+  --sand: #cfc7b7;
+  --sand-soft: #e7e2d6;
+  --cream: #faf8f3;
+  --ink: #2b2e25;
+  --ink-soft: #5c6052;
+  --ink-faint: #939585;
+
+  position: relative;
   width: 100vw;
   height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
   overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #ffffff 0%, var(--cream) 100%);
+  color: var(--ink);
+  font-family: var(--font-body);
 }
 
-/* ---- Background Panorama Carousel ---- */
-.bgContainer {
+/* ---- Ambient brand glow (very subtle) ---- */
+.ambience {
   position: absolute;
   inset: 0;
   z-index: 0;
-}
-
-.bgImage {
-  position: absolute;
-  inset: -20px;
-  background-size: cover;
-  background-position: center;
-  opacity: 0;
-  transition: opacity 2s ease-in-out;
-  transform: scale(1.05);
-  animation: slowZoom 20s ease-in-out infinite alternate;
-}
-
-.bgImageActive {
-  opacity: 1;
-}
-
-@keyframes slowZoom {
-  from { transform: scale(1.0); }
-  to { transform: scale(1.08); }
-}
-
-.bgOverlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(10, 10, 15, 0.75);
-  z-index: 1;
-}
-
-.bgGradient {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center, transparent 20%, var(--color-bg-primary) 80%);
-  z-index: 2;
-}
-
-/* ---- Floating Particles ---- */
-.particles {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
   pointer-events: none;
+  overflow: hidden;
 }
 
-.particle {
+.orbSage,
+.orbSand {
   position: absolute;
-  background: var(--color-accent-primary);
   border-radius: 50%;
-  opacity: 0;
-  animation: particleFloat 6s ease-in-out infinite;
+  filter: blur(90px);
 }
 
-@keyframes particleFloat {
-  0%, 100% {
-    opacity: 0;
-    transform: translateY(0) scale(0.5);
-  }
-  50% {
-    opacity: 0.5;
-    transform: translateY(-40px) scale(1);
-  }
+.orbSage {
+  width: 46vw;
+  height: 46vw;
+  top: -16vw;
+  left: -12vw;
+  background: radial-gradient(circle, rgba(110, 123, 90, 0.18), transparent 70%);
+  animation: drift 18s ease-in-out infinite alternate;
 }
 
-/* ---- Content ---- */
+.orbSand {
+  width: 52vw;
+  height: 52vw;
+  bottom: -20vw;
+  right: -14vw;
+  background: radial-gradient(circle, rgba(207, 199, 183, 0.5), transparent 70%);
+  animation: drift 22s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(3%, 4%, 0) scale(1.08); }
+}
+
+/* ---- Top bar ---- */
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(18px, 3vw, 32px) clamp(20px, 4vw, 48px);
+}
+
+.topbarTag {
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ink-faint);
+}
+
+/* ---- Hero content ---- */
 .content {
   position: relative;
   z-index: 4;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-lg);
-  max-width: 560px;
-  padding: var(--space-xl);
   text-align: center;
+  gap: 22px;
+  max-width: 600px;
+  padding: 0 var(--space-xl, 32px);
 }
 
-/* ---- Badge ---- */
-.badge {
+/* ---- Eyebrow ---- */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 16px;
+  border: 1px solid var(--sand);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--sage-deep);
+}
+
+/* ---- Logo centerpiece ---- */
+.logoWrap {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-md);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  font-size: 0.7rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
+  justify-content: center;
+  margin: 4px 0 2px;
 }
 
-.badgeDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 6px #22c55e;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-/* ---- Logo ---- */
 .logo {
-  animation: float 4s ease-in-out infinite;
+  position: relative;
+  width: 128px;
+  height: 128px;
+  object-fit: contain;
+  animation: floaty 6s ease-in-out infinite;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
 }
 
 /* ---- Title ---- */
 .title {
   font-family: var(--font-display);
-  font-size: 3.5rem;
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  background: var(--gradient-accent);
-  background-size: 200% 200%;
-  animation: gradientShift 5s ease infinite;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: clamp(2.4rem, 5.5vw, 3.5rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.titleRule {
+  width: 56px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--sage), var(--olive));
+  transform-origin: center;
 }
 
 /* ---- Subtitle ---- */
 .subtitle {
-  font-size: 1rem;
-  line-height: 1.7;
-  color: var(--color-text-secondary);
-  max-width: 420px;
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: var(--ink-soft);
+  max-width: 460px;
 }
 
 /* ---- Stats ---- */
 .stats {
   display: flex;
   align-items: center;
-  gap: var(--space-lg);
-  padding: var(--space-md) var(--space-xl);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  gap: clamp(20px, 4vw, 36px);
+  margin-top: 6px;
+  padding: 16px 28px;
+  border: 1px solid var(--sand);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 30px -24px rgba(86, 98, 74, 0.5);
 }
 
 .stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .statValue {
   font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--color-accent-primary);
+  color: var(--sage-deep);
 }
 
 .statLabel {
-  font-size: 0.65rem;
-  color: var(--color-text-tertiary);
+  font-size: 0.62rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.16em;
+  color: var(--ink-faint);
 }
 
 .statDivider {
   width: 1px;
-  height: 32px;
-  background: var(--color-border);
+  height: 34px;
+  background: var(--sand);
 }
 
-/* ---- CTA Button ---- */
-.ctaButton {
-  position: relative;
-  display: flex;
+/* ---- CTA ---- */
+.cta {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md) var(--space-xl);
-  background: var(--gradient-warm);
-  border: none;
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  overflow: hidden;
-  transition: box-shadow var(--transition-normal);
-}
-
-.ctaButton:hover {
-  box-shadow: var(--shadow-glow-accent);
-}
-
-.ctaText {
+  gap: 10px;
+  margin-top: 8px;
+  padding: 15px 30px;
+  border-radius: 9999px;
+  background: var(--sage-deep);
+  color: var(--cream);
   font-family: var(--font-display);
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-bg-primary);
-  letter-spacing: 0.02em;
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 14px 30px -14px rgba(86, 98, 74, 0.7);
+  transition: background var(--transition-normal, 250ms ease),
+    box-shadow var(--transition-normal, 250ms ease);
 }
 
-.ctaButton svg {
-  color: var(--color-bg-primary);
+.cta:hover {
+  background: #485239;
+  box-shadow: 0 18px 38px -14px rgba(86, 98, 74, 0.8);
 }
 
-.ctaGlow {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  animation: shimmer 3s ease infinite;
-  background-size: 200% 100%;
+.cta svg {
+  color: var(--cream);
 }
 
 /* ---- Hint ---- */
 .hint {
-  font-size: 0.75rem;
-  color: var(--color-text-tertiary);
+  font-size: 0.78rem;
+  color: var(--ink-faint);
 }
 
 .kbd {
   display: inline-flex;
   align-items: center;
-  padding: 2px 6px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 0.7rem;
-  color: var(--color-text-secondary);
+  padding: 2px 7px;
   margin: 0 2px;
+  border: 1px solid var(--sand);
+  border-radius: 6px;
+  background: #fff;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-soft);
 }
 
-/* ---- Bottom Bar ---- */
-.bottomBar {
+/* ---- Footer ---- */
+.footer {
   position: absolute;
-  bottom: var(--space-lg);
+  bottom: clamp(16px, 2.5vw, 26px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 4;
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  font-size: 0.65rem;
-  color: var(--color-text-tertiary);
+  gap: 12px;
+  font-size: 0.66rem;
   letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  white-space: nowrap;
 }
 
-.bottomDot {
+.footerDot {
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: var(--color-text-tertiary);
+  background: var(--sand);
 }
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
-  .title {
-    font-size: 2.5rem;
-  }
+  .topbarTag { display: none; }
 
-  .subtitle {
-    font-size: 0.9rem;
-  }
+  .logo { width: 108px; height: 108px; }
+  .logoHalo { width: 150px; height: 150px; }
+
+  .subtitle { font-size: 0.94rem; }
 
   .stats {
-    gap: var(--space-md);
-    padding: var(--space-sm) var(--space-lg);
+    gap: 18px;
+    padding: 14px 20px;
   }
 
-  .statValue {
-    font-size: 1.2rem;
-  }
+  .statValue { font-size: 1.3rem; }
+}
+
+@media (max-height: 720px) {
+  .content { gap: 16px; }
+  .logo { width: 100px; height: 100px; }
+  .logoHalo { width: 142px; height: 142px; }
 }

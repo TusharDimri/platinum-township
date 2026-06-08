@@ -30,11 +30,14 @@ export function useSceneNavigation() {
       clearTimeout(transitionTimeoutRef.current);
     }
 
+    // The screen is dimmed by ~200ms (see .walkVignette); swap the scene here, while
+    // it's fully covered, then the dim fades back in on the new scene. Keep this in
+    // sync with the fade timing so the camera's angle snap is never visible.
     transitionTimeoutRef.current = setTimeout(() => {
       setCurrentSceneId(sceneId);
       setIncomingSceneId(null);
       setIsTransitioning(false);
-    }, 600);
+    }, 420);
   }, [isTransitioning, currentSceneId]);
 
   const goHome = useCallback(() => {

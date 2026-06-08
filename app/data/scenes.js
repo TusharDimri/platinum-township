@@ -19,7 +19,7 @@ const rawScenes = [
   {
     id: 'scene-24', name: 'Scene 24', type: 'ground', yawOffset: -1.094, csvName: 'Scene 24', file: 'Scene 24', x: 548872, y: 232634, z: 2142,
     hotspots: [
-      { targetId: 'scene-29', yaw: 3.0161, pitch: 0.0606 },
+      { targetId: 'scene-29', yaw: 2.2246, pitch: -0.0062 },
       { targetId: 'scene-17', yaw: -2.1838, pitch: 0.0266 },
       { targetId: 'scene-31', yaw: -1.6461, pitch: 0.0261 },
     ]
@@ -30,7 +30,7 @@ const rawScenes = [
     hotspots: [
       { targetId: 'scene-29', yaw: 2.3432, pitch: -0.0475 },
       { targetId: 'scene-17', yaw: -0.2112, pitch: -0.0502 },
-      { targetId: 'scene-24', yaw: 1.0295, pitch: 0.0128 },
+      // { targetId: 'scene-24', yaw: 1.0295, pitch: 0.0128 },
     ]
   },
 
@@ -40,7 +40,7 @@ const rawScenes = [
       { targetId: 'scene-02', yaw: -2.1283, pitch: -0.0127 },
       { targetId: 'scene-24', yaw: 2.140, pitch: -0.018 },
       { targetId: 'scene-27', yaw: 1.0818, pitch: -0.0638 },
-      { targetId: 'scene-17', yaw: 1.3255, pitch: -0.0004 },
+      // { targetId: 'scene-17', yaw: 1.3255, pitch: -0.0004 },
     ],
   },
 
