@@ -9,11 +9,11 @@ import styles from '../styles/BrandMark.module.css';
  *
  * size: 'sm' | 'md' | 'lg'
  */
-export default function BrandMark({ size = 'md', showName = true, className = '' }) {
+export default function BrandMark({ size = 'xl', showName = true, className = '' }) {
   return (
     <span className={`${styles.brand} ${styles[size]} ${className}`}>
       <img src="/Logo.png" alt="Platinum Township" className={styles.logo} />
-      {showName && <span className={styles.name}>Platinum Township</span>}
+      {/* {showName && <span className={styles.name}>Platinum Township</span>} */}
     </span>
   );
 }

@@ -2,22 +2,20 @@
    Platinum Township — Landing Page
    Clean, minimal, premium light theme.
    Palette derived from the brand logo:
-     sage green · warm taupe/sand · olive leaf
-   Scoped here so the dark 3D walkthrough theme
-   (globals.css) stays untouched.
+     forest green · green · leaf/lime — on white
    ============================================ */
 
 .page {
-  /* Brand tokens (local to the landing page) */
-  --sage-deep: #56624a;
-  --sage: #6e7b5a;
-  --olive: #8b8d57;
-  --sand: #cfc7b7;
-  --sand-soft: #e7e2d6;
-  --cream: #faf8f3;
-  --ink: #2b2e25;
-  --ink-soft: #5c6052;
-  --ink-faint: #939585;
+  /* Brand tokens (local to the landing page) — green palette on white */
+  --sage-deep: #0f4d29;
+  --sage: #1f7a3c;
+  --olive: #84c341;
+  --sand: #cfe3d3;
+  --sand-soft: #e7f1ea;
+  --cream: #f4faf5;
+  --ink: #14271a;
+  --ink-soft: #46564b;
+  --ink-faint: #8a9b8f;
 
   position: relative;
   width: 100vw;
@@ -54,7 +52,7 @@
   height: 46vw;
   top: -16vw;
   left: -12vw;
-  background: radial-gradient(circle, rgba(110, 123, 90, 0.18), transparent 70%);
+  background: radial-gradient(circle, rgba(31, 122, 60, 0.16), transparent 70%);
   animation: drift 18s ease-in-out infinite alternate;
 }
 
@@ -63,7 +61,7 @@
   height: 52vw;
   bottom: -20vw;
   right: -14vw;
-  background: radial-gradient(circle, rgba(207, 199, 183, 0.5), transparent 70%);
+  background: radial-gradient(circle, rgba(132, 195, 65, 0.22), transparent 70%);
   animation: drift 22s ease-in-out infinite alternate-reverse;
 }
 
@@ -133,8 +131,8 @@
 
 .logo {
   position: relative;
-  width: 128px;
-  height: 128px;
+  width: clamp(280px, 60vw, 420px);
+  height: auto;
   object-fit: contain;
   animation: floaty 6s ease-in-out infinite;
 }
@@ -181,7 +179,7 @@
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.65);
   backdrop-filter: blur(8px);
-  box-shadow: 0 10px 30px -24px rgba(86, 98, 74, 0.5);
+  box-shadow: 0 10px 30px -24px rgba(15, 77, 41, 0.5);
 }
 
 .stat {
@@ -227,14 +225,14 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 14px 30px -14px rgba(86, 98, 74, 0.7);
+  box-shadow: 0 14px 30px -14px rgba(15, 77, 41, 0.7);
   transition: background var(--transition-normal, 250ms ease),
     box-shadow var(--transition-normal, 250ms ease);
 }
 
 .cta:hover {
-  background: #485239;
-  box-shadow: 0 18px 38px -14px rgba(86, 98, 74, 0.8);
+  background: #0b3c20;
+  box-shadow: 0 18px 38px -14px rgba(15, 77, 41, 0.8);
 }
 
 .cta svg {
@@ -288,8 +286,7 @@
 @media (max-width: 768px) {
   .topbarTag { display: none; }
 
-  .logo { width: 108px; height: 108px; }
-  .logoHalo { width: 150px; height: 150px; }
+  .logo { width: clamp(220px, 74vw, 320px); }
 
   .subtitle { font-size: 0.94rem; }
 
@@ -303,6 +300,5 @@
 
 @media (max-height: 720px) {
   .content { gap: 16px; }
-  .logo { width: 100px; height: 100px; }
-  .logoHalo { width: 142px; height: 142px; }
+  .logo { width: clamp(220px, 48vw, 320px); }
 }

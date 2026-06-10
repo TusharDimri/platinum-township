@@ -1,33 +1,22 @@
-/* Platinum Township brand lockup — logo + wordmark, no decorative background. */
+/* Platinum Township brand lockup. The logo PNG already contains the wordmark, so we
+   render just the image — sized by HEIGHT with auto width (it's a wide horizontal
+   lockup, ~3:1), never a fixed square. */
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.6em;
-  color: var(--color-text-primary);
-  line-height: 1;
-  white-space: nowrap;
+  line-height: 0;
 }
 
 .logo {
   display: block;
+  width: auto;
   object-fit: contain;
   flex-shrink: 0;
 }
 
-.name {
-  font-family: var(--font-display);
-  font-weight: 600;
-  letter-spacing: 0.005em;
-  color: inherit;
-}
-
-/* ---- Sizes ---- */
-.sm .logo { width: 26px; height: 26px; }
-.sm .name { font-size: 0.95rem; }
-
-.md .logo { width: 34px; height: 34px; }
-.md .name { font-size: 1.15rem; }
-
-.lg .logo { width: 56px; height: 56px; }
-.lg .name { font-size: 1.9rem; letter-spacing: -0.01em; }
+/* ---- Sizes (logo height) ---- */
+.sm .logo { height: 24px; }
+.md .logo { height: 34px; }
+.lg .logo { height: 46px; }
+.xl .logo { height: 60px; }

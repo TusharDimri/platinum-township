@@ -12,6 +12,14 @@ import styles from '../styles/PanoramaViewer.module.css';
 // (the incoming sphere has already fetched the destination image).
 THREE.Cache.enabled = true;
 
+// Google-Street-View-style forward travel. During a jump the camera glides FORWARD
+// along the view axis into the scene you're leaving (DOLLY_PUSH); on arrival it starts
+// slightly back and glides forward into the new scene (DOLLY_BACK). Pure translation
+// along the direction you're already looking, so it reads as moving forward — never as
+// turning. (Sphere radius is 500, so these are gentle, ~16% off-centre offsets.)
+const DOLLY_PUSH = 82;
+const DOLLY_BACK = 82;
+
 /* -------------------------------------------------------
    Panorama Sphere — renders equirectangular image inside
    ------------------------------------------------------- */
@@ -69,6 +77,7 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
   const warpTargetYawRef = useRef(warpTargetYaw);
   const initialYawRef = useRef(initialYaw);
   const hasMounted = useRef(false);
+  const dollyRef = useRef(0); // signed forward offset along the view axis (travel)
 
   // Keep latest props in refs so useFrame / the snap effect read current values.
   warpTargetYawRef.current = warpTargetYaw;
@@ -84,6 +93,10 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
     targetEuler.current.y = initialYawRef.current;
     euler.current.x = 0;
     targetEuler.current.x = 0;
+    // Start the new scene pulled slightly BACK, then glide forward into it (the
+    // arrival half of the travel). This runs at the cut, hidden behind the dim, so
+    // the position reset + angle snap are never seen.
+    dollyRef.current = -DOLLY_BACK;
     if (!hasMounted.current) {
       hasMounted.current = true;
       camera.fov = 75;
@@ -91,9 +104,9 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
     }
   }, [sceneId, camera]);
 
-  // FOV: narrow on warp-out, ease back to normal on arrival (no hard snap)
+  // Slight FOV narrowing during a jump adds to the sense of rushing forward.
   useEffect(() => {
-    targetFov.current = isWarping ? 48 : 75;
+    targetFov.current = isWarping ? 64 : 75;
   }, [isWarping]);
 
   useEffect(() => {
@@ -190,23 +203,22 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
   }, [gl, isWarping]);
 
   useFrame(() => {
-    // During warp: pan camera toward the hotspot direction so it feels like
-    // leaning forward into the destination before the scene cuts.
-    if (isWarping && warpTargetYawRef.current !== null) {
-      // Always take the shortest angular path (avoid spinning 300° the wrong way)
-      let diff = warpTargetYawRef.current - targetEuler.current.y;
-      if (diff > Math.PI) diff -= 2 * Math.PI;
-      if (diff < -Math.PI) diff += 2 * Math.PI;
-      targetEuler.current.y += diff * 0.07;
-      targetEuler.current.x += (0 - targetEuler.current.x) * 0.07; // level pitch while walking
-    }
-
+    // Angle is never changed mid-jump — only smoothed toward the user's drag target
+    // (and snapped to the arrival angle behind the dim). No panning during a warp.
     euler.current.x += (targetEuler.current.x - euler.current.x) * 0.15;
     euler.current.y += (targetEuler.current.y - euler.current.y) * 0.15;
     camera.rotation.set(euler.current.x, euler.current.y, 0, 'YXZ');
 
     // Publish live yaw for the minimap facing cone (no React re-render)
     if (cameraYawRef) cameraYawRef.current = euler.current.y;
+
+    // Forward travel dolly: push forward into the scene while warping out, then ease
+    // back to centre (gliding forward from the pulled-back arrival start). Movement is
+    // along the level view axis, so it always reads as walking forward, not turning.
+    const dollyTarget = isWarping ? DOLLY_PUSH : 0;
+    dollyRef.current += (dollyTarget - dollyRef.current) * (isWarping ? 0.14 : 0.11);
+    const fy = euler.current.y;
+    camera.position.set(-Math.sin(fy) * dollyRef.current, 0, -Math.cos(fy) * dollyRef.current);
 
     if (Math.abs(camera.fov - targetFov.current) > 0.1) {
       // Narrow faster (snap into walk), ease out slower (settling into new scene)
@@ -281,11 +293,11 @@ function PanoramaHotspot({ targetScene, currentScene, onClick, baseYawOffset, ex
         <group>
           <mesh position={[0, 10, 0]}>
             <coneGeometry args={[3, 6, 4]} />
-            <meshBasicMaterial color={'#8b8d57'} opacity={0.8} transparent />
+            <meshBasicMaterial color={'#84c341'} opacity={0.8} transparent />
           </mesh>
           <mesh rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[4, 6, 32]} />
-            <meshBasicMaterial color={'#8b8d57'} opacity={0.4} transparent side={THREE.DoubleSide} />
+            <meshBasicMaterial color={'#84c341'} opacity={0.4} transparent side={THREE.DoubleSide} />
           </mesh>
         </group>
       ) : explicitPitch !== undefined ? (
@@ -295,7 +307,7 @@ function PanoramaHotspot({ targetScene, currentScene, onClick, baseYawOffset, ex
         }}>
           <mesh>
             <circleGeometry args={[4, 32]} />
-            <meshBasicMaterial color={'#8b8d57'} transparent opacity={hovered ? 0.8 : 0.5} side={THREE.DoubleSide} />
+            <meshBasicMaterial color={'#84c341'} transparent opacity={hovered ? 0.8 : 0.5} side={THREE.DoubleSide} />
           </mesh>
           <mesh position={[0, 1, 0.1]}>
             <shapeGeometry args={[
@@ -313,7 +325,7 @@ function PanoramaHotspot({ targetScene, currentScene, onClick, baseYawOffset, ex
         <group rotation={[-Math.PI / 2, 0, -visualAngle + Math.PI]} scale={[0.5, 0.5, 0.5]}>
           <mesh>
             <circleGeometry args={[4, 32]} />
-            <meshBasicMaterial color={'#8b8d57'} transparent opacity={hovered ? 0.6 : 0.3} side={THREE.DoubleSide} />
+            <meshBasicMaterial color={'#84c341'} transparent opacity={hovered ? 0.6 : 0.3} side={THREE.DoubleSide} />
           </mesh>
           <mesh position={[0, 1, 0.1]}>
             <shapeGeometry args={[
@@ -428,7 +440,7 @@ export default function PanoramaViewer({
       {!isLoaded && !isTransitioning && (
         <div className={styles.panoLoading}>
           <div className={styles.panoLoadingSpinner} />
-          <p>Loading panorama...</p>
+          <p>Loading...</p>
         </div>
       )}
 

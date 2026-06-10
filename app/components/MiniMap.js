@@ -116,7 +116,7 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
                     y1={`${pos.y}%`}
                     x2={`${targetPos.x}%`}
                     y2={`${targetPos.y}%`}
-                    stroke="rgba(86,98,74,0.28)"
+                    stroke="rgba(15,77,41,0.28)"
                     strokeWidth="0.5"
                   />
                 );
@@ -147,8 +147,8 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
                 >
                   <defs>
                     <radialGradient id="coneGrad" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="rgba(110,123,90,0.6)" />
-                      <stop offset="100%" stopColor="rgba(110,123,90,0)" />
+                      <stop offset="0%" stopColor="rgba(31,122,60,0.62)" />
+                      <stop offset="100%" stopColor="rgba(31,122,60,0)" />
                     </radialGradient>
                   </defs>
                   <path d="M23,23 L11,4 A22,22 0 0,1 35,4 Z" fill="url(#coneGrad)" />

@@ -60,14 +60,14 @@ export default function LandingPage() {
           <img src="/Logo.png" alt="Platinum Township" className={styles.logo} />
         </motion.div>
 
-        <motion.h1
+        {/* <motion.h1
           className={styles.title}
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8 }}
         >
           Platinum Township
-        </motion.h1>
+        </motion.h1> */}
 
         <motion.span
           className={styles.titleRule}
