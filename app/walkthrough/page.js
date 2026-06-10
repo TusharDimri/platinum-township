@@ -17,11 +17,18 @@ const AdminRotationHelper = process.env.NODE_ENV !== 'production'
   : () => null;
 
 export default function WalkthroughPage() {
+  // Live camera yaw shared from the 3D canvas to the minimap's facing cone and
+  // the walk orchestrator, updated every frame via a ref to avoid re-rendering
+  // React at 60fps.
+  const cameraYawRef = useRef(0);
+
   const {
     currentScene,
     incomingSceneId,
     adjacentScenes,
     isTransitioning,
+    isWalking,
+    panYaw,
     isLoading,
     loadingProgress,
     allScenes,
@@ -30,13 +37,9 @@ export default function WalkthroughPage() {
     goHome,
     onLoadComplete,
     updateLoadingProgress,
-  } = useSceneNavigation();
+  } = useSceneNavigation(cameraYawRef);
 
   const incomingScene = incomingSceneId ? allScenes.find(s => s.id === incomingSceneId) : null;
-
-  // Live camera yaw shared from the 3D canvas to the minimap's facing cone,
-  // updated every frame via a ref to avoid re-rendering React at 60fps.
-  const cameraYawRef = useRef(0);
 
   useEffect(() => {
     let progress = 0;
@@ -52,8 +55,8 @@ export default function WalkthroughPage() {
     return () => clearInterval(interval);
   }, [onLoadComplete, updateLoadingProgress]);
 
-  const handlePanoramaNavigate = useCallback((sceneId, yaw) => {
-    navigateToScene(sceneId, yaw);
+  const handlePanoramaNavigate = useCallback((sceneId) => {
+    navigateToScene(sceneId);
   }, [navigateToScene]);
 
   useEffect(() => {
@@ -84,6 +87,8 @@ export default function WalkthroughPage() {
                 onBack={goHome}
                 targetYaw={targetYaw}
                 isTransitioning={isTransitioning}
+                isWalking={isWalking}
+                panYaw={panYaw}
                 cameraYawRef={cameraYawRef}
               />
             )}

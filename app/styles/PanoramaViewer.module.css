@@ -9,20 +9,18 @@
 .walkVignette {
   position: absolute;
   inset: 0;
-  /* Full-screen dark dip — covers the whole view (slightly deeper at the edges) so
-     the scene swap and the camera's angle snap are completely hidden during a jump. */
-  background: radial-gradient(ellipse at center, rgba(22, 24, 17, 0.9) 0%, rgba(16, 18, 12, 0.98) 100%);
+  /* Subtle edge darkening only — the centre stays fully clear so the destination
+     crossfade is what you see. Adds a sense of speed, like peripheral motion blur. */
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 55%, rgba(10, 14, 8, 0.45) 100%);
   pointer-events: none;
   z-index: calc(var(--z-overlay) + 5);
   opacity: 0;
-  /* Ramp back IN (fade up on the new scene) after the cut */
-  transition: opacity 0.32s ease-out;
+  transition: opacity 0.45s ease-out;
 }
 
 .walkVignetteActive {
   opacity: 1;
-  /* Ramp OUT (dim the old scene) quickly so it's fully covered before the cut */
-  transition: opacity 0.2s ease-in;
+  transition: opacity 0.3s ease-in;
 }
 
 /* ---- Brand lockup (top-left) ---- */

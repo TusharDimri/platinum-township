@@ -46,9 +46,13 @@ Everything (navigation, minimap, landing background, adjacency) derives from `ra
 
 react-three-fiber `Canvas` with the camera at the sphere center. The panorama is a `sphereGeometry` with the texture on `BackSide` and a negative X scale (`[-1,1,1]`) to un-mirror the equirectangular image.
 
-- **Scene transitions are a dual-sphere crossfade:** during a 600ms transition (timed in `useSceneNavigation`), both outgoing and incoming spheres render simultaneously — outgoing fades/scales out, incoming fades in from a slightly smaller radius (490 vs 500 to avoid z-fighting). Hotspots are hidden mid-transition.
+- **Scene transitions are a Matterport-style walk:** during the `TRANSITION_MS` (1100ms) window (timed in `useSceneNavigation`), the destination sphere (`IncomingSphere`, radius 490) fades in over the current one while the camera dollies forward. The incoming sphere is pre-rotated by (departureYaw − arrivalYaw) and offset forward by the full dolly travel so the hard cut at the end (scene swap + camera snap) lands on a pixel-identical frame. A module-level LRU texture cache (`loadPanoramaTexture`/`peekPanoramaTexture`) lets the post-cut `PanoramaSphere` pick up the already-uploaded texture synchronously — never bypass it with a raw `TextureLoader`. Hotspots and plot tags are hidden mid-transition.
 - **`yawOffset`** per scene aligns "north" so panoramas face a consistent direction. `targetYaw` carries the look-direction across a navigation so you keep facing your travel direction into the next scene.
 - **Hotspot geometry** has two render paths: manual hotspots (explicit yaw/pitch → billboard placed via spherical coords) vs. automatic (flat ground chevron computed from world positions).
+
+### Plot tags (`app/data/plots.js`, `PlotMarkers.js`, `PlotInfoPanel.js`)
+
+Plots are world-space points shown as clickable tags (drei `Html`) in every scene that can see them; clicking opens an info panel. `plots.js` owns the math: per-scene yaw calibration is derived from authored hotspots (circular mean of world-bearing − authored-yaw; falls back to `yawOffset`), plot world positions are triangulated from 2+ per-scene `marks` (least-squares ray intersection), and `getPlotsForScene` projects each plot into a scene's camera frame. An authored mark always wins over projection in its own scene. Author marks with Shift+P in BuilderMode (see `walkthrough.md` §5).
 
 ### Navigation state (`app/hooks/useSceneNavigation.js`)
 
@@ -57,7 +61,7 @@ Owns navigation state: `currentSceneId`, transition flags, and loading progress.
 ### Dev authoring tools (in-browser, dev mode only)
 
 These components are conditionally rendered only when `NODE_ENV !== 'production'` and are tree-shaken out of production builds. See `walkthrough.md` for the full authoring workflow:
-- **`BuilderMode.js`** — `Shift+A` hotspot builder / `Shift+B` angle builder; `Shift+Click` captures yaw/pitch and copies a paste-ready `scenes.js` line to the clipboard. Builds its overlay UI via imperative DOM (outside the R3F reconciler). `Esc` exits the mode.
+- **`BuilderMode.js`** — `Shift+A` hotspot builder / `Shift+B` angle builder / `Shift+P` plot builder; `Shift+Click` captures yaw/pitch and copies a paste-ready `scenes.js` (or `plots.js`) line to the clipboard. Builds its overlay UI via imperative DOM (outside the R3F reconciler). `Esc` exits the mode.
 - **`AdminRotationHelper.js`** — `Shift+R` toggles live `yawOffset` tuning with arrow keys, logging values to console.
 
 ### Styling

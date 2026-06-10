@@ -10,7 +10,8 @@ import * as THREE from 'three';
  * 
  * Controls:
  *   Shift+A  → Toggle Hotspot Builder
- *   Shift+B  → Toggle Angle Builder  
+ *   Shift+B  → Toggle Angle Builder
+ *   Shift+P  → Toggle Plot Builder (marks for app/data/plots.js)
  *   Shift+Click → Capture coordinates & copy code to clipboard
  *   ESC → Exit builder mode
  * 
@@ -32,7 +33,9 @@ export default function BuilderMode({ currentScene }) {
   const ringRef = useRef(null);
   const [activeMode, setActiveMode] = useState(null);
 
-  // Keep ref in sync for use in DOM event handlers
+  // Keep refs in sync for use in DOM event handlers
+  const currentSceneRef = useRef(currentScene);
+  currentSceneRef.current = currentScene;
   useEffect(() => {
     activeModeRef.current = activeMode;
   }, [activeMode]);
@@ -116,10 +119,12 @@ export default function BuilderMode({ currentScene }) {
     if (!banner || !tooltip) return;
 
     if (activeMode) {
-      const isHotspot = activeMode === 'hotspot';
-      const accentColor = isHotspot ? '#c8a44e' : '#38bdf8';
-      const modeName = isHotspot ? 'Hotspot Builder' : 'Angle Builder';
-      const instruction = isHotspot ? 'Shift+Click to place hotspot' : 'Shift+Click to set angle';
+      const MODE_CONFIG = {
+        hotspot: { accent: '#c8a44e', gradient: 'linear-gradient(135deg, #c8a44e, #e8c65e)', name: 'Hotspot Builder', instruction: 'Shift+Click to place hotspot', hasPitch: true },
+        yawOffset: { accent: '#38bdf8', gradient: 'linear-gradient(135deg, #38bdf8, #818cf8)', name: 'Angle Builder', instruction: 'Shift+Click to set angle', hasPitch: false },
+        plot: { accent: '#84c341', gradient: 'linear-gradient(135deg, #1f7a3c, #84c341)', name: 'Plot Builder', instruction: 'Shift+Click the plot — mark it from 2+ scenes', hasPitch: true },
+      };
+      const { accent: accentColor, gradient, name: modeName, instruction, hasPitch } = MODE_CONFIG[activeMode];
 
       // Show & populate banner
       banner.style.display = 'flex';
@@ -140,15 +145,13 @@ export default function BuilderMode({ currentScene }) {
       const pitchBlock = tooltip.querySelector('#builder-pitch-block');
 
       if (accentEl) {
-        accentEl.style.background = isHotspot
-          ? 'linear-gradient(135deg, #c8a44e, #e8c65e)'
-          : 'linear-gradient(135deg, #38bdf8, #818cf8)';
+        accentEl.style.background = gradient;
       }
       if (coordsEl) {
-        coordsEl.style.gridTemplateColumns = isHotspot ? '1fr 1fr' : '1fr';
+        coordsEl.style.gridTemplateColumns = hasPitch ? '1fr 1fr' : '1fr';
       }
       if (pitchBlock) {
-        pitchBlock.style.display = isHotspot ? 'block' : 'none';
+        pitchBlock.style.display = hasPitch ? 'block' : 'none';
       }
 
       // Reset status
@@ -183,6 +186,9 @@ export default function BuilderMode({ currentScene }) {
       } else if (e.shiftKey && e.key.toLowerCase() === 'b') {
         e.preventDefault();
         setActiveMode(prev => prev === 'yawOffset' ? null : 'yawOffset');
+      } else if (e.shiftKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        setActiveMode(prev => prev === 'plot' ? null : 'plot');
       }
     };
 
@@ -240,6 +246,10 @@ export default function BuilderMode({ currentScene }) {
         code = `{ targetId: 'TODO_SCENE_ID', yaw: ${yaw.toFixed(4)}, pitch: ${pitch.toFixed(4)} },`;
       } else if (activeModeRef.current === 'yawOffset') {
         code = `yawOffset: ${yaw.toFixed(4)},`;
+      } else if (activeModeRef.current === 'plot') {
+        // Paste into a plot's `marks` in app/data/plots.js; mark the same plot
+        // from a second scene to triangulate its world position.
+        code = `'${currentSceneRef.current.id}': { yaw: ${yaw.toFixed(4)}, pitch: ${pitch.toFixed(4)} },`;
       }
 
       // Show copied status
@@ -277,7 +287,7 @@ export default function BuilderMode({ currentScene }) {
 
   // ── Animate 3D crosshair ring ──
   useFrame((state) => {
-    if (activeMode === 'hotspot' && ringRef.current) {
+    if ((activeMode === 'hotspot' || activeMode === 'plot') && ringRef.current) {
       const time = state.clock.getElapsedTime();
       ringRef.current.rotation.z = time * 0.5;
       ringRef.current.scale.setScalar(1 + Math.sin(time * 4) * 0.05);
@@ -285,14 +295,16 @@ export default function BuilderMode({ currentScene }) {
   });
 
   // ── Only return R3F elements (3D crosshair) ──
-  if (!activeMode || activeMode !== 'hotspot') return null;
+  if (activeMode !== 'hotspot' && activeMode !== 'plot') return null;
+
+  const ringColor = activeMode === 'plot' ? '#84c341' : '#c8a44e';
 
   return (
     <group ref={ghostRef} scale={[0.8, 0.8, 0.8]} position={[0, -1000, 0]}>
       {/* Outer rotating ring */}
       <mesh ref={ringRef}>
         <ringGeometry args={[4.5, 5, 32]} />
-        <meshBasicMaterial color="#c8a44e" transparent opacity={0.8} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={ringColor} transparent opacity={0.8} side={THREE.DoubleSide} />
       </mesh>
       {/* Inner ring */}
       <mesh>
@@ -302,7 +314,7 @@ export default function BuilderMode({ currentScene }) {
       {/* Center dot */}
       <mesh>
         <circleGeometry args={[0.5, 16]} />
-        <meshBasicMaterial color="#c8a44e" transparent opacity={1} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={ringColor} transparent opacity={1} side={THREE.DoubleSide} />
       </mesh>
       {/* Crosshair lines */}
       <mesh position={[0, 3.5, 0]}>

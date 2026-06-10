@@ -1,16 +1,14 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import BuilderMode from './BuilderMode';
 import BrandMark from './BrandMark';
-import { getArrivalYaw } from '../data/scenes';
+import PlotMarkers from './PlotMarkers';
+import PlotInfoPanel from './PlotInfoPanel';
+import { TRANSITION_MS } from '../hooks/useSceneNavigation';
 import styles from '../styles/PanoramaViewer.module.css';
-
-// Cache decoded textures so the scene handoff at the end of a transition is instant
-// (the incoming sphere has already fetched the destination image).
-THREE.Cache.enabled = true;
 
 // Google-Street-View-style forward travel. During a jump the camera glides FORWARD
 // along the view axis into the scene you're leaving (DOLLY_PUSH); on arrival it starts
@@ -20,44 +18,98 @@ THREE.Cache.enabled = true;
 const DOLLY_PUSH = 82;
 const DOLLY_BACK = 82;
 
+// How long the incoming panorama takes to fade in over the outgoing one (seconds).
+// Must finish before TRANSITION_MS so the swap at the cut is invisible.
+const CROSSFADE_S = 0.75;
+
+/* -------------------------------------------------------
+   Shared panorama texture cache (GPU-side LRU)
+
+   Both the current sphere and the incoming transition sphere read through this
+   cache, so when a transition ends and `currentScene` flips to the destination,
+   the texture is already decoded and uploaded — the swap renders the very same
+   frame with zero flash. Small LRU keeps GPU memory bounded (8K panos are big).
+   ------------------------------------------------------- */
+const MAX_CACHED_TEXTURES = 4;
+const textureCache = new Map(); // url -> { texture, promise }
+
+function loadPanoramaTexture(url) {
+  const hit = textureCache.get(url);
+  if (hit) {
+    // Refresh LRU position
+    textureCache.delete(url);
+    textureCache.set(url, hit);
+    return hit.promise;
+  }
+
+  const entry = {};
+  entry.promise = new Promise((resolve, reject) => {
+    new THREE.TextureLoader().load(
+      url,
+      (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        entry.texture = texture;
+        resolve(texture);
+      },
+      undefined,
+      (err) => {
+        textureCache.delete(url);
+        reject(err);
+      }
+    );
+  });
+  textureCache.set(url, entry);
+
+  while (textureCache.size > MAX_CACHED_TEXTURES) {
+    const [oldestUrl, oldest] = textureCache.entries().next().value;
+    textureCache.delete(oldestUrl);
+    if (oldest.texture) oldest.texture.dispose();
+  }
+
+  return entry.promise;
+}
+
+function peekPanoramaTexture(url) {
+  const hit = textureCache.get(url);
+  if (hit?.texture) {
+    textureCache.delete(url);
+    textureCache.set(url, hit);
+    return hit.texture;
+  }
+  return null;
+}
+
 /* -------------------------------------------------------
    Panorama Sphere — renders equirectangular image inside
    ------------------------------------------------------- */
 function PanoramaSphere({ imageUrl, onLoaded, baseRadius = 500 }) {
-  const meshRef = useRef();
-  const [texture, setTexture] = useState(null);
+  // Pick up an already-cached texture synchronously so the scene swap at the end
+  // of a transition renders the new panorama on the very same frame as the cut.
+  const cachedTexture = useMemo(() => peekPanoramaTexture(imageUrl), [imageUrl]);
+  const [loaded, setLoaded] = useState(null); // { url, texture } once async load lands
+  const texture = cachedTexture || (loaded?.url === imageUrl ? loaded.texture : null);
 
   useEffect(() => {
-    const loader = new THREE.TextureLoader();
-    loader.load(
-      imageUrl,
-      (loadedTexture) => {
-        loadedTexture.colorSpace = THREE.SRGBColorSpace;
-        loadedTexture.mapping = THREE.EquirectangularReflectionMapping;
-        loadedTexture.minFilter = THREE.LinearFilter;
-        loadedTexture.magFilter = THREE.LinearFilter;
-        setTexture(loadedTexture);
-        if (onLoaded) onLoaded();
-      },
-      undefined,
-      (err) => console.error('Failed to load panorama:', err)
-    );
-
+    let alive = true;
+    loadPanoramaTexture(imageUrl)
+      .then((tex) => {
+        if (!alive) return;
+        setLoaded({ url: imageUrl, texture: tex });
+        if (onLoaded) onLoaded(imageUrl);
+      })
+      .catch((err) => console.error('Failed to load panorama:', err));
     return () => {
-      if (texture) {
-        texture.dispose();
-      }
+      alive = false;
     };
   }, [imageUrl]);
 
   if (!texture) return null;
 
-  // A single static sphere. Scene changes are hidden behind the transition fade
-  // (see the dim overlay in the main component), so there's no crossfade, dolly, or
-  // rotation here — the angle change to the next scene happens while the screen is
-  // covered, which is what makes the jump look like a straight step forward.
   return (
-    <mesh ref={meshRef} scale={[-1, 1, 1]}>
+    <mesh scale={[-1, 1, 1]}>
       <sphereGeometry args={[baseRadius, 64, 32]} />
       <meshBasicMaterial map={texture} side={THREE.BackSide} depthWrite={false} />
     </mesh>
@@ -65,37 +117,122 @@ function PanoramaSphere({ imageUrl, onLoaded, baseRadius = 500 }) {
 }
 
 /* -------------------------------------------------------
+   Incoming Sphere — the Matterport-style walk transition
+
+   While a jump is in flight the destination panorama fades IN over the current
+   one as the camera glides forward, instead of dipping to black. Two tricks make
+   the eventual hard cut (scene swap + camera angle snap) invisible:
+
+   1. The sphere is pre-rotated about Y by (departureYaw − arrivalYaw), so what
+      you see through the departing camera is pixel-identical to what the new
+      scene will show once the camera snaps to its arrival angle.
+   2. The sphere is pushed forward to where the camera's travel ENDS, offset by
+      DOLLY_PUSH + DOLLY_BACK along the travel axis. At the cut the camera sits
+      DOLLY_PUSH ahead of origin, i.e. DOLLY_BACK behind the incoming sphere's
+      centre — exactly where the arrival glide resumes from. Travelling toward an
+      off-centre sphere also adds genuine parallax: the destination grows as you
+      walk into it, which is what sells the movement.
+   ------------------------------------------------------- */
+function IncomingSphere({ imageUrl, departureYaw, arrivalYaw, baseRadius = 490 }) {
+  const materialRef = useRef();
+  const fadeStart = useRef(null);
+  const [texture, setTexture] = useState(() => peekPanoramaTexture(imageUrl));
+
+  useEffect(() => {
+    let alive = true;
+    loadPanoramaTexture(imageUrl)
+      .then((tex) => alive && setTexture(tex))
+      .catch((err) => console.error('Failed to load panorama:', err));
+    return () => {
+      alive = false;
+    };
+  }, [imageUrl]);
+
+  // Departure/arrival yaws are fixed for the lifetime of one transition.
+  const { rotationY, offset } = useMemo(() => {
+    const travel = DOLLY_PUSH + DOLLY_BACK;
+    return {
+      rotationY: departureYaw - arrivalYaw,
+      offset: [-Math.sin(departureYaw) * travel, 0, -Math.cos(departureYaw) * travel],
+    };
+  }, [departureYaw, arrivalYaw]);
+
+  useFrame(({ clock }) => {
+    if (!texture || !materialRef.current) return;
+    if (fadeStart.current === null) fadeStart.current = clock.elapsedTime;
+    const t = Math.min(1, (clock.elapsedTime - fadeStart.current) / CROSSFADE_S);
+    // easeInOutCubic
+    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    materialRef.current.opacity = eased;
+  });
+
+  if (!texture) return null;
+
+  return (
+    <group position={offset} rotation={[0, rotationY, 0]}>
+      <mesh scale={[-1, 1, 1]} renderOrder={1}>
+        <sphereGeometry args={[baseRadius, 64, 32]} />
+        <meshBasicMaterial
+          ref={materialRef}
+          map={texture}
+          side={THREE.BackSide}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          depthTest={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+function easeInQuad(t) {
+  return t * t;
+}
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+/* -------------------------------------------------------
    Panorama Camera Controls — drag to look around
    ------------------------------------------------------- */
-function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = null, sceneId, cameraYawRef }) {
+function PanoramaControls({ initialYaw = 0, isWarping = false, lockInput = false, panToYaw = null, sceneId, cameraYawRef }) {
   const { camera, gl } = useThree();
   const isPointerDown = useRef(false);
   const previousPointer = useRef({ x: 0, y: 0 });
   const euler = useRef(new THREE.Euler(0, initialYaw, 0, 'YXZ'));
   const targetEuler = useRef(new THREE.Euler(0, initialYaw, 0, 'YXZ'));
   const targetFov = useRef(75);
-  const warpTargetYawRef = useRef(warpTargetYaw);
   const initialYawRef = useRef(initialYaw);
   const hasMounted = useRef(false);
   const dollyRef = useRef(0); // signed forward offset along the view axis (travel)
+  const warpStartRef = useRef(null); // clock time the outgoing push began
+  const settleStartRef = useRef(null); // clock time the arrival glide began
 
-  // Keep latest props in refs so useFrame / the snap effect read current values.
-  warpTargetYawRef.current = warpTargetYaw;
   initialYawRef.current = initialYaw;
+
+  // Auto-pan: the walk orchestrator asks the camera to face the travel direction
+  // before a hop. Just move the drag target — the smoothing lerp does the turn.
+  useEffect(() => {
+    if (panToYaw !== null) {
+      targetEuler.current.y = panToYaw;
+      targetEuler.current.x = 0; // level out for the walk
+    }
+  }, [panToYaw]);
 
   // Snap orientation ONLY when the scene actually changes (mount + arrival cut),
   // not on every initialYaw change. Setting targetYaw at click time also changes
   // initialYaw while the scene is unchanged — snapping there would teleport the
-  // camera to the hotspot instead of letting the warp pan walk toward it.
-  // Hard-reset FOV only on first mount; afterwards let it ease back naturally.
+  // camera mid-walk. The cut itself is invisible because the incoming sphere was
+  // rendered pre-rotated to match exactly this snapped angle (see IncomingSphere).
   useEffect(() => {
     euler.current.y = initialYawRef.current;
     targetEuler.current.y = initialYawRef.current;
     euler.current.x = 0;
     targetEuler.current.x = 0;
-    // Start the new scene pulled slightly BACK, then glide forward into it (the
-    // arrival half of the travel). This runs at the cut, hidden behind the dim, so
-    // the position reset + angle snap are never seen.
+    // Resume the arrival half of the travel: pulled slightly BACK, gliding forward.
+    // Continuous with the outgoing push because the incoming sphere is offset by
+    // the full travel distance.
     dollyRef.current = -DOLLY_BACK;
     if (!hasMounted.current) {
       hasMounted.current = true;
@@ -104,16 +241,23 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
     }
   }, [sceneId, camera]);
 
-  // Slight FOV narrowing during a jump adds to the sense of rushing forward.
+  // During a jump: narrow FOV slightly (sense of rushing forward), level the
+  // pitch so the pitch reset at the cut has already happened on screen, and
+  // freeze any residual auto-pan so the heading captured for the incoming
+  // sphere stays exact through the cut.
   useEffect(() => {
     targetFov.current = isWarping ? 64 : 75;
+    if (isWarping) {
+      targetEuler.current.x = 0;
+      targetEuler.current.y = euler.current.y;
+    }
   }, [isWarping]);
 
   useEffect(() => {
     const canvas = gl.domElement;
 
     const onPointerDown = (e) => {
-      if (isWarping) return;
+      if (lockInput) return;
       isPointerDown.current = true;
       previousPointer.current = { x: e.clientX, y: e.clientY };
       canvas.style.cursor = 'grabbing';
@@ -125,7 +269,7 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
     };
 
     const onPointerMove = (e) => {
-      if (!isPointerDown.current || isWarping) return;
+      if (!isPointerDown.current || lockInput) return;
 
       const dx = e.clientX - previousPointer.current.x;
       const dy = e.clientY - previousPointer.current.y;
@@ -142,12 +286,12 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
     };
 
     const onWheel = (e) => {
-      if (isWarping) return;
+      if (lockInput) return;
       targetFov.current = Math.max(30, Math.min(90, targetFov.current + e.deltaY * 0.05));
     };
 
     const onTouchStart = (e) => {
-      if (e.touches.length === 1 && !isWarping) {
+      if (e.touches.length === 1 && !lockInput) {
         isPointerDown.current = true;
         previousPointer.current = {
           x: e.touches[0].clientX,
@@ -157,7 +301,7 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
     };
 
     const onTouchMove = (e) => {
-      if (!isPointerDown.current || e.touches.length !== 1 || isWarping) return;
+      if (!isPointerDown.current || e.touches.length !== 1 || lockInput) return;
       e.preventDefault();
 
       const dx = e.touches[0].clientX - previousPointer.current.x;
@@ -200,11 +344,12 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
       canvas.removeEventListener('touchmove', onTouchMove);
       canvas.removeEventListener('touchend', onTouchEnd);
     };
-  }, [gl, isWarping]);
+  }, [gl, lockInput]);
 
-  useFrame(() => {
-    // Angle is never changed mid-jump — only smoothed toward the user's drag target
-    // (and snapped to the arrival angle behind the dim). No panning during a warp.
+  useFrame((state) => {
+    // Yaw is never changed mid-jump — only smoothed toward the drag/auto-pan
+    // target (and snapped to the arrival angle at the invisible cut). Pitch eases
+    // level during a jump so the post-cut reset is seamless.
     euler.current.x += (targetEuler.current.x - euler.current.x) * 0.15;
     euler.current.y += (targetEuler.current.y - euler.current.y) * 0.15;
     camera.rotation.set(euler.current.x, euler.current.y, 0, 'YXZ');
@@ -212,11 +357,30 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, warpTargetYaw = n
     // Publish live yaw for the minimap facing cone (no React re-render)
     if (cameraYawRef) cameraYawRef.current = euler.current.y;
 
-    // Forward travel dolly: push forward into the scene while warping out, then ease
-    // back to centre (gliding forward from the pulled-back arrival start). Movement is
-    // along the level view axis, so it always reads as walking forward, not turning.
-    const dollyTarget = isWarping ? DOLLY_PUSH : 0;
-    dollyRef.current += (dollyTarget - dollyRef.current) * (isWarping ? 0.14 : 0.11);
+    // Forward travel dolly, time-based so the cut is exactly continuous:
+    // accelerate out of the old scene (easeIn, reaching DOLLY_PUSH precisely when
+    // the cut fires) and decelerate into the new one (easeOut from -DOLLY_BACK) —
+    // one smooth accelerate→decelerate stride across the cut. Movement is along
+    // the level view axis, so it always reads as walking forward, never turning.
+    const now = state.clock.elapsedTime;
+    if (isWarping) {
+      if (warpStartRef.current === null) {
+        warpStartRef.current = now;
+        settleStartRef.current = null;
+      }
+      const p = Math.min(1, (now - warpStartRef.current) / (TRANSITION_MS / 1000));
+      dollyRef.current = DOLLY_PUSH * easeInQuad(p);
+    } else {
+      warpStartRef.current = null;
+      if (dollyRef.current < -0.5) {
+        if (settleStartRef.current === null) settleStartRef.current = now;
+        const q = Math.min(1, (now - settleStartRef.current) / 0.7);
+        dollyRef.current = -DOLLY_BACK * (1 - easeOutCubic(q));
+      } else {
+        dollyRef.current = 0;
+        settleStartRef.current = null;
+      }
+    }
     const fy = euler.current.y;
     camera.position.set(-Math.sin(fy) * dollyRef.current, 0, -Math.cos(fy) * dollyRef.current);
 
@@ -244,7 +408,7 @@ function PanoramaHotspot({ targetScene, currentScene, onClick, baseYawOffset, ex
     // Manual hotspot placement
     const distance = 80;
 
-    // In Three.js, camera looks down -Z. With euler rotation Y, 
+    // In Three.js, camera looks down -Z. With euler rotation Y,
     // X = -sin(Y), Z = -cos(Y). Since our sphere is scaled [-1, 1, 1], X is flipped visually.
     // However, if we just place the object in the same parent coordinate space, we use standard math.
     // We will place it at the exact spherical coordinates.
@@ -354,21 +518,43 @@ export default function PanoramaViewer({
   onBack,
   targetYaw,
   isTransitioning,
+  isWalking = false,
+  panYaw = null,
   cameraYawRef
 }) {
-  const [isLoaded, setIsLoaded] = useState(false);
+  // Which panorama URL has finished loading. Deriving isLoaded from this (instead
+  // of a boolean that one effect sets and another resets) makes it immune to
+  // effect/microtask ordering — production React interleaves them differently
+  // than dev, and a reset racing the texture callback left the loader stuck.
+  const [loadedUrl, setLoadedUrl] = useState(null);
+  const isLoaded = loadedUrl === currentScene.panoramaUrl;
   const [showDragHint, setShowDragHint] = useState(false);
+  const [activePlot, setActivePlot] = useState(null);
 
-  const handleLoaded = useCallback(() => {
-    setIsLoaded(true);
+  // Freeze the camera yaw at the moment a transition begins — the incoming sphere
+  // needs the DEPARTURE yaw, and cameraYawRef keeps updating after the cut.
+  const departureYawRef = useRef(null);
+  if (isTransitioning && incomingScene && departureYawRef.current === null) {
+    departureYawRef.current = cameraYawRef.current;
+  }
+  useEffect(() => {
+    if (!isTransitioning) departureYawRef.current = null;
+  }, [isTransitioning]);
+
+  const handleLoaded = useCallback((url) => {
+    setLoadedUrl(url);
   }, []);
 
   useEffect(() => {
     if (!isTransitioning) {
-      setIsLoaded(false);
       setShowDragHint(false);
     }
   }, [currentScene.id, isTransitioning]);
+
+  // Close any open plot panel when walking to another scene
+  useEffect(() => {
+    setActivePlot(null);
+  }, [currentScene.id]);
 
   useEffect(() => {
     if (isLoaded && !isTransitioning) {
@@ -390,16 +576,15 @@ export default function PanoramaViewer({
   }, [currentScene.id, isTransitioning, adjacentScenes]);
 
   // targetYaw carries the ARRIVAL camera euler.y for the destination scene (from
-  // getArrivalYaw at click time). The camera is held still during the transition and
-  // only snaps to this angle at the cut — and the cut happens while the dim fade
-  // covers the screen, so the angle change is never visible. The view simply fades
-  // out facing forward and fades back in facing the same way in the next scene.
+  // getArrivalYaw at click time). The camera holds its heading during the walk and
+  // snaps to this angle at the cut — invisible, because the incoming sphere faded
+  // in pre-rotated to make both framings pixel-identical.
   const initialYaw = targetYaw !== null ? targetYaw : (currentScene.yawOffset || 0);
-  const warpYaw = null; // never pan during a transition — hold the view perfectly still
+  const arrivalYaw = targetYaw !== null ? targetYaw : (incomingScene?.yawOffset || 0);
 
   return (
     <div className={styles.container}>
-      {/* Transition fade: a quick dark dip that hides the scene swap + camera snap */}
+      {/* Soft edge vignette during travel — adds speed, never blacks out the view */}
       <div className={`${styles.walkVignette} ${isTransitioning ? styles.walkVignetteActive : ''}`} />
 
       <Canvas
@@ -407,35 +592,57 @@ export default function PanoramaViewer({
         gl={{ antialias: true, toneMapping: THREE.NoToneMapping }}
         dpr={[1, 1.5]}
       >
-        {/* The current scene — a single sphere; scene swaps happen behind the fade */}
+        {/* The current scene sphere */}
         <PanoramaSphere
           imageUrl={currentScene.panoramaUrl}
           onLoaded={handleLoaded}
           baseRadius={500}
         />
 
+        {/* The destination sphere — fades in over the current one during a walk */}
+        {isTransitioning && incomingScene && (
+          <IncomingSphere
+            key={incomingScene.id}
+            imageUrl={incomingScene.panoramaUrl}
+            departureYaw={departureYawRef.current ?? cameraYawRef.current}
+            arrivalYaw={arrivalYaw}
+          />
+        )}
+
         <PanoramaControls
           initialYaw={initialYaw}
           isWarping={isTransitioning}
-          warpTargetYaw={warpYaw}
+          lockInput={isWalking || isTransitioning}
+          panToYaw={panYaw}
           sceneId={currentScene.id}
           cameraYawRef={cameraYawRef}
         />
         {process.env.NODE_ENV !== 'production' && <BuilderMode currentScene={currentScene} />}
 
-        {/* Only show hotspots when not transitioning */}
-        {!isTransitioning && adjacentScenes.map((adj) => (
+        {/* Hide hotspots for the whole walk (all hops), not just per-transition */}
+        {!isWalking && !isTransitioning && adjacentScenes.map((adj) => (
           <PanoramaHotspot
             key={adj.targetScene.id}
             targetScene={adj.targetScene}
             currentScene={currentScene}
             explicitYaw={adj.yaw}
             explicitPitch={adj.pitch}
-            onClick={(id) => onNavigate(id, getArrivalYaw(currentScene.id, id, cameraYawRef.current))}
+            onClick={(id) => onNavigate(id)}
             baseYawOffset={currentScene.yawOffset}
           />
         ))}
+
+        {/* Plot tags — same plots resolve to the right angle in every scene */}
+        {!isWalking && !isTransitioning && (
+          <PlotMarkers
+            sceneId={currentScene.id}
+            activePlotId={activePlot?.id}
+            onSelect={setActivePlot}
+          />
+        )}
       </Canvas>
+
+      <PlotInfoPanel plot={activePlot} onClose={() => setActivePlot(null)} />
 
       {!isLoaded && !isTransitioning && (
         <div className={styles.panoLoading}>
