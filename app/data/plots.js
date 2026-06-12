@@ -177,7 +177,7 @@ const PLOT_SOURCE = [
 // standing on that road cares about; the full site map shows everything at
 // once. Per-plot `maxDistance` overrides this (set Infinity to always show);
 // authored marks are always shown regardless.
-const DEFAULT_MAX_DISTANCE = 30;
+const DEFAULT_MAX_DISTANCE = 40;
 
 // Camera-frame conventions (must match BuilderMode capture + hotspot placement):
 //   direction(yaw, pitch) = (-sin(yaw)·cos(pitch), sin(pitch), -cos(yaw)·cos(pitch))
