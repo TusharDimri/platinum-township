@@ -531,6 +531,19 @@ export default function PanoramaViewer({
   const [showDragHint, setShowDragHint] = useState(false);
   const [activePlot, setActivePlot] = useState(null);
 
+  // Plot tags sit at their TRUE distance from the camera, so the arrival glide
+  // (camera travelling forward while settling) would visibly sweep them around.
+  // Mount them only after the glide has finished — they scale in Matterport-style.
+  const [showPlotTags, setShowPlotTags] = useState(false);
+  useEffect(() => {
+    if (isTransitioning || isWalking) {
+      setShowPlotTags(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowPlotTags(true), 850);
+    return () => clearTimeout(timer);
+  }, [isTransitioning, isWalking, currentScene.id]);
+
   // Freeze the camera yaw at the moment a transition begins — the incoming sphere
   // needs the DEPARTURE yaw, and cameraYawRef keeps updating after the cut.
   const departureYawRef = useRef(null);
@@ -633,7 +646,7 @@ export default function PanoramaViewer({
         ))}
 
         {/* Plot tags — same plots resolve to the right angle in every scene */}
-        {!isWalking && !isTransitioning && (
+        {showPlotTags && (
           <PlotMarkers
             sceneId={currentScene.id}
             activePlotId={activePlot?.id}

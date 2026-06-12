@@ -1,80 +1,183 @@
 /**
  * Plot (property) tag data for Platinum Township.
  *
- * THE BIG IDEA — mark a plot once, see it from every scene:
- * A plot is a single point in WORLD space. Each panorama scene is just a camera
- * standing at a known world position, so once a plot's world position is known we
- * can compute the exact yaw/pitch it appears at from ANY scene — the same tag
- * automatically shows up at the right spot, from the right angle, everywhere.
+ * Every plot is a single point in MODEL space (SketchUp mm, exported via the
+ * Ruby console). From that one point the app derives:
+ *   • its pin on the 2D site map (exact — same coordinate system as the map), and
+ *   • its 3D tag in every panorama scene (projected via each scene's calibration).
  *
- * AUTHORING WORKFLOW (dev mode):
- *   1. In the walkthrough, press Shift+P (Plot Builder) and Shift+Click the plot
- *      on the ground. A `'scene-xx': { yaw, pitch }` line is copied to clipboard.
- *   2. Paste it into the plot's `marks` below.
- *   3. Walk to a DIFFERENT scene that can see the same plot, and mark it again.
- *   4. With 2+ marks the plot's world position is triangulated automatically and
- *      the tag appears in every other scene too. More marks = better accuracy.
+ * ── HOW TO EDIT (you will do this by hand) ─────────────────────────────────
+ * Each entry in PLOT_SOURCE is one plot:
+ *     P(0, 488709, 612902, 830)
+ *      │  └──────┬───────┘  └ ground height (mm)
+ *      │     SketchUp X, Y (mm)
+ *      └ plot number → id 'plot-0', name 'Plot 0'
  *
- * Per scene the tag uses, in order of preference:
- *   - the authored mark for that scene (always pixel-exact), else
- *   - the projection of the triangulated/explicit world position.
- *
- * Scenes are calibrated using the navigation hotspots you already authored in
- * scenes.js (each hotspot pins the panorama's rotation against real geometry),
- * so projection accuracy improves as scenes gain hotspots. A scene with no
- * hotspots falls back to its yawOffset.
+ * The export wasn't in naming order, so identify each pin on the site map
+ * (click it — the overlay shows its current name), then fix it here:
+ *   • rename:        P(0, ...x, y, z..., { name: 'Plot 101' })
+ *   • real details:  P(0, ...x, y, z..., { name: 'Plot 101', info: { area: '1,200 sq.ft',
+ *                      dimensions: "30' × 40'", facing: 'North', price: '₹ 19.5 Lakhs',
+ *                      status: 'Sold', description: '...' } })
+ * Any info field you set overrides the demo defaults; the rest stay.
+ * `status` drives pin/tag colors: Available (green) / Reserved (amber) / Sold (red).
+ * Other per-plot options: hideIn: ['scene-02'], maxDistance: 120 (meters),
+ * marks: { 'scene-17': { yaw, pitch } } — a Shift+P mark always overrides the
+ * projected angle in its own scene (use it if a tag looks slightly off there).
+ * ───────────────────────────────────────────────────────────────────────────
  */
 
 import { scenes, getSceneById } from './scenes.js';
+import { modelToAppPosition, modelToMapFraction } from './geo.js';
 
 /* =========================================================
    PLOT DATA — edit this
    ========================================================= */
 
-const rawPlots = [
-  {
-    id: 'plot-demo-1',
-    name: 'Plot 12',
-    // Either author `marks` (preferred, via Shift+P) or an explicit world
-    // `position` [x, y, z] in normalized scene coordinates.
-    // This demo plot sits midway between Scene 27 and Scene 17 so you can see
-    // the same tag resolve to different angles from different scenes.
-    position: {},
-    marks: {
-    },
-    info: {
-      number: '1',
-      area: '1,500 sq.ft',
-      dimensions: "30' × 50'",
-      facing: 'East',
-      price: '₹ 24.75 Lakhs',
-      status: 'Available',
-      description:
-        'Premium east-facing plot on the main avenue, close to the central park and clubhouse. Clear title with immediate registration.',
-    },
-    // Optional: hideIn: ['scene-02'], maxDistance: 120
-  },
+// Demo details shown for every plot until real data is filled in per plot.
+const DEMO_INFO = {
+  area: '1,500 sq.ft',
+  dimensions: "30' × 50'",
+  facing: 'East',
+  price: '₹ 24.75 Lakhs',
+  status: 'Available',
+  description: 'Demo details — open this plot in plots.js and replace with real data.',
+};
+
+function P(n, x, y, z, overrides = {}) {
+  return {
+    id: `plot-${n}`,
+    name: `Plot ${n}`,
+    sketchup: [x, y, z],
+    ...overrides,
+    info: { number: String(n), ...DEMO_INFO, ...(overrides.info || {}) },
+  };
+}
+
+const PLOT_SOURCE = [
+  P(0, 488709, 612902, 830),
+  P(1, 507706, 636748, 830),
+  P(2, 487719, 635887, 830),
+  P(3, 535074, 652724, 820),
+  P(4, 542409, 610218, 830),
+  P(5, 497713, 636317, 830),
+  P(6, 498702, 613332, 830),
+  P(7, 542255, 631733, 830),
+  P(8, 508696, 613763, 830),
+  P(9, 518689, 614193, 830),
+  P(10, 517700, 637178, 830),
+  P(11, 542332, 621724, 830),
+  P(12, 271008, 537666, 830),
+  P(13, 260911, 535293, 830),
+  P(14, 280593, 540717, 830),
+  P(15, 290167, 544098, 830),
+  P(16, 299707, 547514, 830),
+  P(17, 447745, 634166, 830),
+  P(18, 468721, 612042, 830),
+  P(19, 477726, 635457, 830),
+  P(20, 467732, 635027, 830),
+  P(21, 478715, 612472, 830),
+  P(22, 542061, 642947, 830),
+  P(23, 459024, 580216, 830),
+  P(24, 515336, 580508, 830),
+  P(25, 458728, 611612, 830),
+  P(26, 418417, 570586, 830),
+  P(27, 545808, 581838, 830),
+  P(28, 438218, 573791, 830),
+  P(29, 328600, 558016, 830),
+  P(30, 366136, 570234, 830),
+  P(31, 504130, 580026, 830),
+  P(32, 309188, 551053, 830),
+  P(33, 408450, 570364, 830),
+  P(34, 482816, 581202, 830),
+  P(35, 318806, 554774, 830),
+  P(36, 338265, 560703, 830),
+  P(37, 535537, 581378, 830),
+  P(38, 388259, 573793, 830),
+  P(39, 457738, 634597, 830),
+  P(40, 348015, 563814, 830),
+  P(41, 398271, 574242, 830),
+  P(42, 357710, 566631, 830),
+  P(43, 377998, 572174, 830),
+  P(44, 448086, 576955, 830),
+  P(45, 470939, 580852, 830),
+  P(46, 428340, 571687, 830),
+  P(47, 494002, 579595, 830),
+  P(48, 398706, 641392, 830),
+  P(49, 343066, 644316, 830),
+  P(50, 352155, 624236, 830),
+  P(51, 371325, 654026, 830),
+  P(52, 338979, 594804, 830),
+  P(53, 385968, 605491, 830),
+  P(54, 349360, 595029, 830),
+  P(55, 362657, 682756, 830),
+  P(56, 365546, 673179, 830),
+  P(57, 359334, 693769, 830),
+  P(58, 401596, 631815, 830),
+  P(59, 310227, 587591, 830),
+  P(60, 285151, 601444, 830),
+  P(61, 540966, 564747, 830),
+  P(62, 377103, 634874, 830),
+  P(63, 438396, 633764, 830),
+  P(64, 506226, 559402, 830),
+  P(65, 382882, 615721, 830),
+  P(66, 392928, 660544, 830),
+  P(67, 380937, 700286, 830),
+  P(68, 335825, 662794, 830),
+  P(69, 390039, 670121, 830),
+  P(70, 333188, 672282, 830),
+  P(71, 332183, 693471, 830),
+  P(72, 426789, 633388, 830),
+  P(73, 357389, 595168, 830),
+  P(74, 329379, 593370, 830),
+  P(75, 300650, 584702, 830),
+  P(76, 435066, 610717, 830),
+  P(77, 374214, 644450, 830),
+  P(78, 384260, 689274, 830),
+  P(79, 323456, 613002, 830),
+  P(80, 407572, 612009, 830),
+  P(81, 313880, 610112, 830),
+  P(82, 319803, 590481, 830),
+  P(83, 379993, 625297, 830),
+  P(84, 448734, 611181, 830),
+  P(85, 395817, 650968, 830),
+  P(86, 339059, 653555, 830),
+  P(87, 304303, 607223, 830),
+  P(88, 291074, 581813, 830),
+  P(89, 294727, 604334, 830),
+  P(90, 404485, 622239, 830),
+  P(91, 368435, 663603, 830),
+  P(92, 387149, 679697, 830),
+  P(93, 333649, 682539, 830),
+  P(94, 223254, 567426, 830),
+  P(95, 214569, 606580, 830),
+  P(96, 271921, 576034, 830),
+  P(97, 251332, 569822, 830),
+  P(98, 225470, 557646, 830),
+  P(99, 281497, 578923, 830),
+  P(100, 262345, 573145, 830),
+  P(101, 256421, 592776, 830),
+  P(102, 265998, 595666, 830),
+  P(103, 216723, 596782, 830),
+  P(104, 212585, 615377, 830),
+  P(105, 218877, 586985, 830),
+  P(106, 235032, 616925, 830),
+  P(107, 245409, 589454, 830),
+  P(108, 221038, 577205, 830),
+  P(109, 275574, 598555, 830),
 ];
 
 /* =========================================================
    Implementation
    ========================================================= */
 
-// Plots stay pinned at their real spot from ANY distance — if a plot is in
-// frame, its tag is on it. Set a per-plot `maxDistance` to hide a tag in far
-// scenes; authored marks are always shown regardless.
-const DEFAULT_MAX_DISTANCE = Infinity;
-
-function midpointOf(sceneIdA, sceneIdB, yOffset = 0) {
-  const a = getSceneById(sceneIdA);
-  const b = getSceneById(sceneIdB);
-  if (!a || !b) return null;
-  return [
-    (a.position[0] + b.position[0]) / 2,
-    (a.position[1] + b.position[1]) / 2 + yOffset,
-    (a.position[2] + b.position[2]) / 2,
-  ];
-}
+// In-panorama tags show for plots within this many meters of the camera. With
+// 110 plots, showing all of them from every scene collapses into an unreadable
+// band of overlapping pins at the horizon — nearby plots are what a visitor
+// standing on that road cares about; the full site map shows everything at
+// once. Per-plot `maxDistance` overrides this (set Infinity to always show);
+// authored marks are always shown regardless.
+const DEFAULT_MAX_DISTANCE = 30;
 
 // Camera-frame conventions (must match BuilderMode capture + hotspot placement):
 //   direction(yaw, pitch) = (-sin(yaw)·cos(pitch), sin(pitch), -cos(yaw)·cos(pitch))
@@ -165,15 +268,27 @@ function triangulateRays(rays) {
   return [M[0][3] / M[0][0], M[1][3] / M[1][1], M[2][3] / M[2][2]];
 }
 
+/**
+ * A plot's position in APP space, by precedence:
+ *  1. explicit `position: [x, y, z]` (already app-space) — escape hatch,
+ *  2. `sketchup: [x, y, z]` model-mm coords (the normal, exact path),
+ *  3. triangulation from 2+ Shift+P `marks`.
+ */
 function resolveWorldPosition(rawPlot) {
-  // Explicit position only counts if it's a real [x, y, z] — anything else
-  // (e.g. a leftover `{}`) falls through to mark triangulation.
   if (
     Array.isArray(rawPlot.position) &&
     rawPlot.position.length === 3 &&
     rawPlot.position.every(Number.isFinite)
   ) {
     return rawPlot.position;
+  }
+
+  if (
+    Array.isArray(rawPlot.sketchup) &&
+    rawPlot.sketchup.length === 3 &&
+    rawPlot.sketchup.every(Number.isFinite)
+  ) {
+    return modelToAppPosition(...rawPlot.sketchup);
   }
 
   const rays = [];
@@ -185,10 +300,13 @@ function resolveWorldPosition(rawPlot) {
   return triangulateRays(rays);
 }
 
-export const plots = rawPlots.map((p) => ({
+export const plots = PLOT_SOURCE.map((p) => ({
   ...p,
   marks: p.marks || {},
   worldPosition: resolveWorldPosition(p),
+  // Pin position on the 2D site map (fractions of the image; null if no
+  // model-space coordinate is known — map pins require `sketchup`).
+  map: Array.isArray(p.sketchup) ? modelToMapFraction(p.sketchup[0], p.sketchup[1]) : null,
 }));
 
 /**

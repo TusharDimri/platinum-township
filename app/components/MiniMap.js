@@ -1,71 +1,89 @@
 'use client';
 
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { sceneAdjacency } from '../data/scenes';
+import { plots } from '../data/plots';
+import {
+  SITE_MAP,
+  MAP_WORLD_WIDTH_MM,
+  MAP_WORLD_HEIGHT_MM,
+  cameraRawToMapFraction,
+} from '../data/geo';
+import SiteMapOverlay from './SiteMapOverlay';
 import styles from '../styles/MiniMap.module.css';
+
+// The radar shows a region this wide (mm of real world) around the current
+// scene — game-minimap style. Click the radar for the full site map.
+const REGION_WORLD_MM = 220000;
 
 export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneSelect, cameraYawRef, adjacentScenes }) {
   const coneRef = useRef(null);
   const coneAngleRef = useRef(0);
+  const [expanded, setExpanded] = useState(false);
 
-  // Calculate bounds for mapping positions to 2D
-  const { positions } = useMemo(() => {
-    const groundScenes = scenes.filter(s => s.type === 'ground');
-    const xs = groundScenes.map((s) => s.position[0]);
-    const zs = groundScenes.map((s) => s.position[2]);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minZ = Math.min(...zs);
-    const maxZ = Math.max(...zs);
-    const padding = 20; // percentage padding
+  // Scene dots georeferenced onto the site map (fractions of the map image).
+  // Everything on the map — image, scene dots, plot pins — shares the single
+  // world→map transform in data/geo.js, so they can never disagree.
+  const positions = useMemo(
+    () =>
+      scenes
+        .filter((s) => s.type === 'ground')
+        .map((scene) => {
+          const { u, v } = cameraRawToMapFraction(scene.rawPosition);
+          return { id: scene.id, name: scene.name, u, v };
+        }),
+    [scenes]
+  );
 
-    const rangeX = maxX - minX || 1;
-    const rangeZ = maxZ - minZ || 1;
+  const plotPins = useMemo(
+    () => plots.filter((p) => p.map).map((p) => ({ id: p.id, u: p.map.u, v: p.map.v })),
+    []
+  );
 
-    const positions = groundScenes.map((scene) => ({
-      id: scene.id,
-      name: scene.name,
-      x: ((scene.position[0] - minX) / rangeX) * (100 - padding * 2) + padding,
-      y: ((scene.position[2] - minZ) / rangeZ) * (100 - padding * 2) + padding,
-    }));
-
-    return { positions };
-  }, [scenes]);
+  // Region window: the full map is rendered as one large layer positioned so
+  // the current scene sits at the radar's centre. All sizes are % of the
+  // (square) radar, so no pixel measurement is needed; CSS transitions the
+  // layer smoothly when you walk to another scene.
+  const layer = useMemo(() => {
+    const w = (MAP_WORLD_WIDTH_MM / REGION_WORLD_MM) * 100;
+    const h = (MAP_WORLD_HEIGHT_MM / REGION_WORLD_MM) * 100;
+    const cur = positions.find((p) => p.id === currentSceneId);
+    const u = cur?.u ?? 0.5;
+    const v = cur?.v ?? 0.5;
+    return { w, h, left: 50 - u * w, top: 50 - v * h };
+  }, [positions, currentSceneId]);
 
   // Rotate the cone to show where the camera is actually facing — SELF-CALIBRATED
   // from the scene's own hotspots (which the user placed and trusts), NOT from the
   // often-uncalibrated yawOffset.
   //
-  // The cone maps camera euler.y to an on-map bearing linearly with slope -1
-  // (a panorama is a rigid rotation of the world): coneAngle = -euler.y + C.
-  // Each hotspot gives one calibration sample, because we know both:
-  //   • the euler.y that faces it           → adj.yaw
-  //   • the on-map bearing to its dot       → atan2(dx, -dy)   (CW from up)
-  // so C = mapAngle + adj.yaw. We circular-average C over every hotspot, which is
-  // robust to slight misplacement and needs no yawOffset at all. Result: look at a
-  // path and the cone points straight at that path's destination on the map.
+  // The cone maps camera euler.y to an on-map angle linearly with slope -1:
+  // coneAngle = -euler.y + C. Each hotspot gives one calibration sample: we know
+  // the euler.y that faces it (adj.yaw) and its CSV-frame bearing w from the raw
+  // camera coordinates. Because the map lives in MODEL space, which is the CSV
+  // frame with X/Y swapped (see geo.js), the on-map cone constant per sample is
+  // C = 3π/2 − w + adj.yaw (the swap mirrors bearings: mapAngle = 3π/2 − w − ...).
+  // Circular-averaged over every hotspot for robustness.
   useEffect(() => {
-    const currentPos = positions.find(p => p.id === currentSceneId);
-
     let sumSin = 0;
     let sumCos = 0;
     let calibrated = false;
-    if (currentPos && adjacentScenes) {
+    if (currentScene?.rawPosition && adjacentScenes) {
       for (const adj of adjacentScenes) {
-        if (adj.yaw === undefined) continue;
-        const targetPos = positions.find(p => p.id === adj.targetScene.id);
-        if (!targetPos) continue;
-        const dx = targetPos.x - currentPos.x;
-        const dy = targetPos.y - currentPos.y;
-        const c = Math.atan2(dx, -dy) + adj.yaw; // calibration constant (radians)
+        if (adj.yaw === undefined || !adj.targetScene?.rawPosition) continue;
+        const dx = adj.targetScene.rawPosition[0] - currentScene.rawPosition[0];
+        const dy = adj.targetScene.rawPosition[1] - currentScene.rawPosition[1];
+        const w = Math.atan2(-dx, -dy); // CSV-frame bearing of this hotspot
+        const c = (3 * Math.PI) / 2 - w + adj.yaw;
         sumSin += Math.sin(c);
         sumCos += Math.cos(c);
         calibrated = true;
       }
     }
-    // Fallback to the yawOffset model only for scenes with no usable hotspots.
-    const C = calibrated ? Math.atan2(sumSin, sumCos) : -(currentScene?.yawOffset ?? 0);
+    const C = calibrated
+      ? Math.atan2(sumSin, sumCos)
+      : (3 * Math.PI) / 2 - (currentScene?.yawOffset ?? 0);
 
     let raf;
     const tick = () => {
@@ -84,84 +102,127 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [currentSceneId, positions, cameraYawRef, adjacentScenes, currentScene]);
+  }, [currentSceneId, currentScene, cameraYawRef, adjacentScenes]);
 
   return (
-    <motion.div
-      className={styles.container}
-      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ delay: 0.5, duration: 0.5, ease: 'easeOut' }}
-    >
-      <div className={styles.header}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-          <circle cx="12" cy="10" r="3" />
-        </svg>
-        <span>Map</span>
-      </div>
+    <>
+      <motion.div
+        className={styles.container}
+        initial={{ opacity: 0, scale: 0.8, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.5, ease: 'easeOut' }}
+      >
+        {/* Clicking the radar (anywhere that isn't a scene dot) opens the full map */}
+        <div
+          className={styles.mapArea}
+          onClick={() => setExpanded(true)}
+          title="Open site map"
+        >
+          <div
+            className={styles.regionLayer}
+            style={{
+              width: `${layer.w}%`,
+              height: `${layer.h}%`,
+              left: `${layer.left}%`,
+              top: `${layer.top}%`,
+            }}
+          >
+            <img src={SITE_MAP.url} alt="" className={styles.regionImage} draggable={false} />
 
-      <div className={styles.mapArea}>
-        {/* Connection lines */}
-        <svg className={styles.connections} viewBox="0 0 100 100" preserveAspectRatio="none">
-          {positions.map((pos) => {
-            const adjIds = sceneAdjacency[pos.id]?.map(a => a.id) || [];
-            return adjIds.map((targetId) => {
-              const targetPos = positions.find(p => p.id === targetId);
-              if (targetPos) {
-                return (
-                  <line
-                    key={`${pos.id}-${targetId}`}
-                    x1={`${pos.x}%`}
-                    y1={`${pos.y}%`}
-                    x2={`${targetPos.x}%`}
-                    y2={`${targetPos.y}%`}
-                    stroke="rgba(15,77,41,0.28)"
-                    strokeWidth="0.5"
-                  />
-                );
-              }
-              return null;
-            });
-          })}
-        </svg>
+            {/* Connection lines */}
+            <svg className={styles.connections} viewBox="0 0 100 100" preserveAspectRatio="none">
+              {positions.map((pos) => {
+                const adjIds = sceneAdjacency[pos.id]?.map((a) => a.id) || [];
+                return adjIds.map((targetId) => {
+                  const targetPos = positions.find((p) => p.id === targetId);
+                  if (!targetPos) return null;
+                  return (
+                    <line
+                      key={`${pos.id}-${targetId}`}
+                      x1={pos.u * 100}
+                      y1={pos.v * 100}
+                      x2={targetPos.u * 100}
+                      y2={targetPos.v * 100}
+                      stroke="rgba(15,77,41,0.35)"
+                      strokeWidth="1.2"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  );
+                });
+              })}
+            </svg>
 
-        {/* Scene dots — large transparent hit areas around small visual dots */}
-        {positions.map((pos) => {
-          const isActive = pos.id === currentSceneId;
-          return (
-            <button
-              key={pos.id}
-              className={`${styles.dotHit} ${isActive ? styles.dotHitActive : ''}`}
-              style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-              onClick={() => onSceneSelect(pos.id)}
-              title={pos.name}
-            >
-              {/* Facing cone — only on the current location */}
-              {isActive && (
-                <svg
-                  ref={coneRef}
-                  className={styles.cone}
-                  viewBox="0 0 46 46"
-                  aria-hidden="true"
+            {/* Plot pins (visual only at radar scale — interact in the full map) */}
+            {plotPins.map((p) => (
+              <span
+                key={p.id}
+                className={styles.plotMicroPin}
+                style={{ left: `${p.u * 100}%`, top: `${p.v * 100}%` }}
+              />
+            ))}
+
+            {/* Scene dots — large transparent hit areas around small visual dots */}
+            {positions.map((pos) => {
+              const isActive = pos.id === currentSceneId;
+              return (
+                <button
+                  key={pos.id}
+                  className={`${styles.dotHit} ${isActive ? styles.dotHitActive : ''}`}
+                  style={{ left: `${pos.u * 100}%`, top: `${pos.v * 100}%` }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSceneSelect(pos.id);
+                  }}
+                  title={pos.name}
                 >
-                  <defs>
-                    <radialGradient id="coneGrad" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="rgba(31,122,60,0.62)" />
-                      <stop offset="100%" stopColor="rgba(31,122,60,0)" />
-                    </radialGradient>
-                  </defs>
-                  <path d="M23,23 L11,4 A22,22 0 0,1 35,4 Z" fill="url(#coneGrad)" />
-                </svg>
-              )}
+                  {/* Facing cone — only on the current location */}
+                  {isActive && (
+                    <svg ref={coneRef} className={styles.cone} viewBox="0 0 46 46" aria-hidden="true">
+                      <defs>
+                        <radialGradient id="coneGrad" cx="50%" cy="50%" r="50%">
+                          <stop offset="0%" stopColor="rgba(31,122,60,0.62)" />
+                          <stop offset="100%" stopColor="rgba(31,122,60,0)" />
+                        </radialGradient>
+                      </defs>
+                      <path d="M23,23 L11,4 A22,22 0 0,1 35,4 Z" fill="url(#coneGrad)" />
+                    </svg>
+                  )}
 
-              <span className={`${styles.dot} ${isActive ? styles.dotActive : ''}`}>
-                {isActive && <span className={styles.dotPulse} />}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </motion.div>
+                  <span className={`${styles.dot} ${isActive ? styles.dotActive : ''}`}>
+                    {isActive && <span className={styles.dotPulse} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Expand affordance (also the keyboard path into the full map) */}
+          <button
+            className={styles.expandButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(true);
+            }}
+            aria-label="Open full site map"
+            title="Open full site map"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+          </button>
+        </div>
+      </motion.div>
+
+      <SiteMapOverlay
+        open={expanded}
+        onClose={() => setExpanded(false)}
+        scenePoints={positions}
+        currentSceneId={currentSceneId}
+        onSceneSelect={(id) => {
+          setExpanded(false);
+          onSceneSelect(id);
+        }}
+      />
+    </>
   );
 }

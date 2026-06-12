@@ -5,7 +5,7 @@
  * CSV Name → Actual filename mapping handled here
  */
 
-const SCALE_FACTOR = 1000;
+export const SCALE_FACTOR = 1000;
 
 // Aerial scenes have massive Z (height) values
 const rawScenes = [
@@ -81,6 +81,11 @@ const groundScenes = rawScenes.filter(s => s.type === 'ground');
 const centerX = groundScenes.reduce((s, sc) => s + sc.x, 0) / groundScenes.length;
 const centerY = groundScenes.reduce((s, sc) => s + sc.y, 0) / groundScenes.length;
 const centerZ = groundScenes.reduce((s, sc) => s + sc.z, 0) / groundScenes.length;
+
+// The raw-CSV centroid the app's 3D coordinate system is built around. Exported so
+// other data (plots, the 2D site map) can be converted into the SAME space — see
+// app/data/geo.js, the single place all coordinate conversions live.
+export const RAW_CENTER = { x: centerX, y: centerY, z: centerZ };
 
 // Process scenes with normalized coordinates
 export const scenes = rawScenes.map((scene) => {

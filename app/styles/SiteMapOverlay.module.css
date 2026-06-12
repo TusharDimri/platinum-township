@@ -1,0 +1,331 @@
+/* ---- Full-screen site map overlay ---- */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 16, 11, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  cursor: grab;
+  overflow: hidden;
+  touch-action: none;
+  animation: fadeIn 0.25s ease;
+}
+
+.backdrop:active {
+  cursor: grabbing;
+}
+
+.stage {
+  will-change: transform;
+}
+
+.mapBox {
+  position: relative;
+}
+
+.mapImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.connections {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---- Plot pins ---- */
+.pin {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.pin:hover,
+.pinSelected {
+  z-index: 6;
+}
+
+.pinDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+  transition: transform var(--transition-fast);
+}
+
+.pin:hover .pinDot,
+.pinSelected .pinDot {
+  transform: scale(1.55);
+}
+
+.pinAvailable .pinDot {
+  background: #84c341;
+}
+.pinReserved .pinDot {
+  background: #d8a93c;
+}
+.pinSold .pinDot {
+  background: #d05050;
+}
+
+.pinSelected .pinDot {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 1.5px;
+}
+
+.pinLabel {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: rgba(12, 18, 12, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.pin:hover .pinLabel,
+.pin:focus-visible .pinLabel,
+.pinSelected .pinLabel {
+  opacity: 1;
+}
+
+/* ---- Scene dots (walk points) ---- */
+.sceneDot {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 3;
+}
+
+.sceneDot:hover {
+  z-index: 7;
+}
+
+.sceneDotInner {
+  position: relative;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--color-accent-tertiary);
+  border: 2.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  transition: transform var(--transition-fast);
+}
+
+.sceneDot:hover .sceneDotInner {
+  transform: scale(1.4);
+}
+
+.sceneDotActive .sceneDotInner {
+  background: var(--color-accent-primary);
+  width: 15px;
+  height: 15px;
+}
+
+.sceneDotPulse {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(132, 195, 65, 0.9);
+  animation: pulseRing 2s ease-out infinite;
+}
+
+.sceneLabel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: rgba(12, 18, 12, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.sceneDot:hover .sceneLabel,
+.sceneDot:focus-visible .sceneLabel,
+.sceneDotActive .sceneLabel {
+  opacity: 1;
+}
+
+/* ---- Chrome ---- */
+.topBar {
+  position: absolute;
+  top: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-sm) var(--space-sm) var(--space-sm) var(--space-lg);
+  box-shadow: var(--shadow-md);
+  cursor: default;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-primary);
+}
+
+.closeButton {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.closeButton:hover {
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
+}
+
+.zoomControls {
+  position: absolute;
+  right: var(--space-lg);
+  bottom: var(--space-xl);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  cursor: default;
+}
+
+.zoomControls button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.zoomControls button:hover {
+  background: #ffffff;
+  box-shadow: var(--shadow-glow);
+}
+
+.legend {
+  position: absolute;
+  bottom: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: var(--space-sm) var(--space-md);
+  box-shadow: var(--shadow-sm);
+  cursor: default;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.legendSwatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
+}
+
+.swatchAvailable {
+  background: #84c341;
+}
+.swatchReserved {
+  background: #d8a93c;
+}
+.swatchSold {
+  background: #d05050;
+}
+.swatchScene {
+  background: var(--color-accent-tertiary);
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 640px) {
+  .legend {
+    bottom: calc(var(--space-lg) + 56px);
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 86vw;
+  }
+}
