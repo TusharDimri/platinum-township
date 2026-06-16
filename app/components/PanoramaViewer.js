@@ -59,7 +59,7 @@ const EYE_HEIGHT = 120;
 // Tier B master switch. Leave false until you've generated depth maps into
 // public/panoramas/depth/ (see scripts/depth_infer.py). When false the depth
 // branch is dormant and you get pure ground-plane projection.
-const DEPTH_ENABLED = false;
+const DEPTH_ENABLED = true;
 const DEPTH_STRENGTH = 1.0; // 0 = ignore depth map, 1 = full displacement
 
 /* Build a meshBasicMaterial whose vertices are displaced for depth. We patch the
