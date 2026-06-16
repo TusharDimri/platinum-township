@@ -126,8 +126,8 @@ const rawScenes = [
 
   {
     id: 'scene-71', name: 'Scene 71', type: 'ground', yawOffset: 0, csvName: 'Scene 71', file: 'Scene 71', x: 652331, y: 501442, z: 2401, hotspots: [
-      { targetId: 'scene-72', yaw: -1.5847, pitch: -0.0105 },
-      { targetId: 'scene-70', yaw: -1.4595, pitch: -0.0366 },
+      { targetId: 'scene-70', yaw: -1.4296, pitch: -0.0313 },
+      { targetId: 'scene-72', yaw: 1.5582, pitch: -0.0213 },
     ]
   },
 
