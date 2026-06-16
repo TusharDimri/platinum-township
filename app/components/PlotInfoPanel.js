@@ -36,33 +36,36 @@ export default function PlotInfoPanel({ plot, onClose }) {
   const statusClass = styles[`status_${status.toLowerCase()}`] || styles.status_available;
 
   return (
-    <aside className={styles.panel} aria-label={`Details for ${plot.name}`}>
-      <header className={styles.header}>
-        <div>
-          <p className={styles.kicker}>Plot Details</p>
-          <h2 className={styles.title}>{plot.name}</h2>
+    <>
+      <div className={styles.backdrop} onClick={onClose} aria-hidden="true" />
+      <aside className={styles.panel} aria-label={`Details for ${plot.name}`}>
+        <header className={styles.header}>
+          <div>
+            <p className={styles.kicker}>Plot Details</p>
+            <h2 className={styles.title}>{plot.name}</h2>
+          </div>
+          <span className={`${styles.statusChip} ${statusClass}`}>{status}</span>
+        </header>
+
+        <div className={styles.rows}>
+          {FIELD_LABELS.map(([key, label]) =>
+            info[key] ? (
+              <div className={styles.row} key={key}>
+                <span className={styles.rowLabel}>{label}</span>
+                <span className={styles.rowValue}>{info[key]}</span>
+              </div>
+            ) : null
+          )}
         </div>
-        <span className={`${styles.statusChip} ${statusClass}`}>{status}</span>
-      </header>
 
-      <div className={styles.rows}>
-        {FIELD_LABELS.map(([key, label]) =>
-          info[key] ? (
-            <div className={styles.row} key={key}>
-              <span className={styles.rowLabel}>{label}</span>
-              <span className={styles.rowValue}>{info[key]}</span>
-            </div>
-          ) : null
-        )}
-      </div>
+        {info.description && <p className={styles.description}>{info.description}</p>}
 
-      {info.description && <p className={styles.description}>{info.description}</p>}
-
-      <button className={styles.closeButton} onClick={onClose} aria-label="Close plot details">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M18 6L6 18M6 6l12 12" />
-        </svg>
-      </button>
-    </aside>
+        <button className={styles.closeButton} onClick={onClose} aria-label="Close plot details">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </aside>
+    </>
   );
 }

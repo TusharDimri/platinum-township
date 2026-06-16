@@ -54,7 +54,7 @@ const PANO_SEGMENTS_H = 96;
 // Camera height above the virtual floor, in sphere-radius units (radius is 500,
 // a forward step is ~82). SMALLER = stronger ground parallax (more "walking");
 // LARGER = flatter, back toward a plain sphere. Pure feel knob — safe to tune.
-const EYE_HEIGHT = 120;
+const EYE_HEIGHT = 150;
 
 // Tier B master switch. Leave false until you've generated depth maps into
 // public/panoramas/depth/ (see scripts/depth_infer.py). When false the depth

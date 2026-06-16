@@ -1,4 +1,18 @@
 /* ---- Plot info slide-in panel ---- */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-overlay) + 7);
+  background: rgba(10, 16, 11, 0.4);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .panel {
   position: absolute;
   top: 50%;

@@ -116,9 +116,6 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
       <motion.div
         className={styles.stage}
         style={{ x, y, scale: zoom }}
-        drag
-        dragMomentum={true}
-        dragElastic={0.1}
         onClick={(e) => e.stopPropagation()}
       >
         <div

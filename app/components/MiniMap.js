@@ -129,9 +129,6 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
               x,
               y
             }}
-            drag
-            dragMomentum={true}
-            dragElastic={0.1}
           >
             <img src={SITE_MAP.url} alt="" className={styles.regionImage} draggable={false} />
 
