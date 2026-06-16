@@ -172,6 +172,7 @@ const rawScenes = [
     id: 'scene-77', name: 'Scene 77', type: 'ground', yawOffset: 0, csvName: 'Scene 77', file: 'Scene 77', x: 665182, y: 351874, z: 2673,
     hotspots: [
       { targetId: 'scene-78', yaw: 1.4190, pitch: -0.0193 },
+      { targetId: 'scene-76', yaw: -1.6227, pitch: -0.0235 },
     ]
   },
 
@@ -240,6 +241,10 @@ export const scenes = rawScenes.map((scene) => {
     type: scene.type,
     yawOffset: scene.yawOffset,
     panoramaUrl: `/panoramas/${scene.file}.jpg`,
+    // Optional per-pixel depth map for Tier-B parallax. Only consumed when
+    // DEPTH_ENABLED is on in PanoramaViewer AND the file exists (generate with
+    // scripts/depth_infer.py). Harmless to point at a missing file otherwise.
+    depthUrl: `/panoramas/depth/${scene.file}.jpg`,
     thumbnailUrl: `/panoramas/thumbs/${scene.file}_thumb.jpg`,
     originalPanorama: `${scene.file}.png`,
     position: [normalizedX, normalizedY, normalizedZ],

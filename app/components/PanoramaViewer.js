@@ -23,6 +23,116 @@ const DOLLY_BACK = 82;
 const CROSSFADE_S = 0.75;
 
 /* -------------------------------------------------------
+   Depth / parallax (the "Matterport" feel)
+
+   A plain panorama sphere has every pixel at the same radius, so dollying the
+   camera forward scales the whole image uniformly — your eye reads that as a
+   ZOOM, not as walking. Real depth needs near pixels to sweep past faster than
+   far ones (parallax). We get that by displacing the sphere's vertices along
+   their own ray — direction is untouched, only the distance changes.
+
+   IMPORTANT: because only the radius changes (never the ray direction), the view
+   from the camera CENTRE (origin) is pixel-identical to the old plain sphere.
+   Calibration (yawOffset, hotspots, plot triangulation) is angle-based and stays
+   exactly valid. Parallax only appears once the camera leaves the origin, i.e.
+   during the navigation dolly — which is precisely when you want it.
+
+   Two tiers, same shader:
+   • Tier A (always on): GROUND-PLANE projection. The lower hemisphere is bent
+     onto a flat floor EYE_HEIGHT below the camera, so the ground flows past your
+     feet as you step forward. No extra assets, no per-pixel data, ~zero cost.
+   • Tier B (opt-in): per-pixel DEPTH MAP. Supply a grayscale depth image per
+     panorama and every object gets true parallax. Inert until DEPTH_ENABLED and
+     a scene actually has a depthUrl. See scripts/depth_infer.py.
+   ------------------------------------------------------- */
+
+// Denser than the old 64×32 so the floor bend reads smooth, not faceted. ~12k
+// verts — trivial for the GPU; the vertex displacement itself is a few maths ops.
+const PANO_SEGMENTS_W = 128;
+const PANO_SEGMENTS_H = 96;
+
+// Camera height above the virtual floor, in sphere-radius units (radius is 500,
+// a forward step is ~82). SMALLER = stronger ground parallax (more "walking");
+// LARGER = flatter, back toward a plain sphere. Pure feel knob — safe to tune.
+const EYE_HEIGHT = 120;
+
+// Tier B master switch. Leave false until you've generated depth maps into
+// public/panoramas/depth/ (see scripts/depth_infer.py). When false the depth
+// branch is dormant and you get pure ground-plane projection.
+const DEPTH_ENABLED = false;
+const DEPTH_STRENGTH = 1.0; // 0 = ignore depth map, 1 = full displacement
+
+/* Build a meshBasicMaterial whose vertices are displaced for depth. We patch the
+   stock material via onBeforeCompile (rather than a from-scratch ShaderMaterial)
+   so three's colour management, sRGB, UV transform and BackSide handling stay
+   byte-for-byte identical to before — we ONLY add a vertex displacement. */
+function buildPanoramaMaterial(extra = {}) {
+  const mat = new THREE.MeshBasicMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    ...extra,
+  });
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uEyeHeight = { value: EYE_HEIGHT };
+    shader.uniforms.uDepthMap = { value: null };
+    shader.uniforms.uHasDepth = { value: 0 };
+    shader.uniforms.uDepthStrength = { value: DEPTH_STRENGTH };
+    shader.vertexShader =
+      'uniform float uEyeHeight;\n' +
+      'uniform sampler2D uDepthMap;\n' +
+      'uniform float uHasDepth;\n' +
+      'uniform float uDepthStrength;\n' +
+      shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        {
+          float r0 = length(position);     // original sphere radius (500 or 490)
+          vec3 dir = position / r0;        // unchanged ray direction
+          float r = r0;
+          // --- Tier A: ground-plane projection ---
+          // Below the horizon, place the pixel on a flat floor uEyeHeight down.
+          // At the horizon (dir.y→0) this stays ~r0 (identical to a plain sphere);
+          // looking straight down it tightens to uEyeHeight. A forward dolly then
+          // makes the near floor slide past fast and the far floor slowly = depth.
+          if (dir.y < -0.001) {
+            r = min(r, uEyeHeight / (-dir.y));
+          }
+          // --- Tier B: per-pixel depth map (dormant unless supplied) ---
+          if (uHasDepth > 0.5) {
+            float d = clamp(texture2D(uDepthMap, uv).r, 0.0, 1.0); // 1=near, 0=far
+            float depthRadius = mix(r0, uEyeHeight, d);
+            r = mix(r, depthRadius, uDepthStrength);
+          }
+          transformed = dir * r;
+        }`
+      );
+    mat.userData.shader = shader; // keep a handle so depth maps can stream in later
+  };
+  return mat;
+}
+
+/* Depth maps are plain grayscale data, not colour — no sRGB, linear sampling. */
+const depthCache = new Map();
+function loadDepthTexture(url) {
+  if (depthCache.has(url)) return depthCache.get(url);
+  const p = new Promise((resolve, reject) => {
+    new THREE.TextureLoader().load(
+      url,
+      (t) => {
+        t.colorSpace = THREE.NoColorSpace;
+        t.minFilter = THREE.LinearFilter;
+        t.magFilter = THREE.LinearFilter;
+        resolve(t);
+      },
+      undefined,
+      reject
+    );
+  });
+  depthCache.set(url, p);
+  return p;
+}
+
+/* -------------------------------------------------------
    Shared panorama texture cache (GPU-side LRU)
 
    Both the current sphere and the incoming transition sphere read through this
@@ -85,12 +195,21 @@ function peekPanoramaTexture(url) {
 /* -------------------------------------------------------
    Panorama Sphere — renders equirectangular image inside
    ------------------------------------------------------- */
-function PanoramaSphere({ imageUrl, onLoaded, baseRadius = 500 }) {
+function PanoramaSphere({ imageUrl, depthUrl, onLoaded, baseRadius = 500 }) {
   // Pick up an already-cached texture synchronously so the scene swap at the end
   // of a transition renders the new panorama on the very same frame as the cut.
   const cachedTexture = useMemo(() => peekPanoramaTexture(imageUrl), [imageUrl]);
   const [loaded, setLoaded] = useState(null); // { url, texture } once async load lands
   const texture = cachedTexture || (loaded?.url === imageUrl ? loaded.texture : null);
+  const [depthTexture, setDepthTexture] = useState(null);
+
+  // Build the displacement material WITH its map already set, so it compiles with
+  // USE_MAP/USE_UV defined (the depth branch samples `uv`). Rebuilt per texture.
+  const material = useMemo(
+    () => (texture ? buildPanoramaMaterial({ map: texture }) : null),
+    [texture]
+  );
+  useEffect(() => () => material?.dispose(), [material]);
 
   useEffect(() => {
     let alive = true;
@@ -106,12 +225,35 @@ function PanoramaSphere({ imageUrl, onLoaded, baseRadius = 500 }) {
     };
   }, [imageUrl]);
 
-  if (!texture) return null;
+  // Tier B: stream in the depth map when one exists, else stay on ground-plane only.
+  useEffect(() => {
+    if (!DEPTH_ENABLED || !depthUrl) {
+      setDepthTexture(null);
+      return;
+    }
+    let alive = true;
+    loadDepthTexture(depthUrl)
+      .then((t) => alive && setDepthTexture(t))
+      .catch(() => { }); // missing depth map → silently keep ground-plane depth
+    return () => {
+      alive = false;
+    };
+  }, [depthUrl]);
+
+  // Feed the depth map into the (already compiled) shader uniforms.
+  useEffect(() => {
+    const sh = material?.userData.shader;
+    if (!sh) return;
+    sh.uniforms.uDepthMap.value = depthTexture || null;
+    sh.uniforms.uHasDepth.value = depthTexture ? 1 : 0;
+  }, [depthTexture, material]);
+
+  if (!texture || !material) return null;
 
   return (
     <mesh scale={[-1, 1, 1]}>
-      <sphereGeometry args={[baseRadius, 64, 32]} />
-      <meshBasicMaterial map={texture} side={THREE.BackSide} depthWrite={false} />
+      <sphereGeometry args={[baseRadius, PANO_SEGMENTS_W, PANO_SEGMENTS_H]} />
+      <primitive object={material} attach="material" />
     </mesh>
   );
 }
@@ -133,10 +275,22 @@ function PanoramaSphere({ imageUrl, onLoaded, baseRadius = 500 }) {
       off-centre sphere also adds genuine parallax: the destination grows as you
       walk into it, which is what sells the movement.
    ------------------------------------------------------- */
-function IncomingSphere({ imageUrl, departureYaw, arrivalYaw, baseRadius = 490 }) {
-  const materialRef = useRef();
+function IncomingSphere({ imageUrl, depthUrl, departureYaw, arrivalYaw, baseRadius = 490 }) {
   const fadeStart = useRef(null);
   const [texture, setTexture] = useState(() => peekPanoramaTexture(imageUrl));
+  const [depthTexture, setDepthTexture] = useState(null);
+
+  // Same depth displacement as the resting sphere, so the floor keeps flowing
+  // through the cut instead of popping flat. Opacity is animated by mutating the
+  // material directly (it's transparent + depthTest off, drawn over the current scene).
+  const material = useMemo(
+    () =>
+      texture
+        ? buildPanoramaMaterial({ map: texture, transparent: true, opacity: 0, depthTest: false })
+        : null,
+    [texture]
+  );
+  useEffect(() => () => material?.dispose(), [material]);
 
   useEffect(() => {
     let alive = true;
@@ -148,6 +302,27 @@ function IncomingSphere({ imageUrl, departureYaw, arrivalYaw, baseRadius = 490 }
     };
   }, [imageUrl]);
 
+  useEffect(() => {
+    if (!DEPTH_ENABLED || !depthUrl) {
+      setDepthTexture(null);
+      return;
+    }
+    let alive = true;
+    loadDepthTexture(depthUrl)
+      .then((t) => alive && setDepthTexture(t))
+      .catch(() => { });
+    return () => {
+      alive = false;
+    };
+  }, [depthUrl]);
+
+  useEffect(() => {
+    const sh = material?.userData.shader;
+    if (!sh) return;
+    sh.uniforms.uDepthMap.value = depthTexture || null;
+    sh.uniforms.uHasDepth.value = depthTexture ? 1 : 0;
+  }, [depthTexture, material]);
+
   // Departure/arrival yaws are fixed for the lifetime of one transition.
   const { rotationY, offset } = useMemo(() => {
     const travel = DOLLY_PUSH + DOLLY_BACK;
@@ -158,29 +333,21 @@ function IncomingSphere({ imageUrl, departureYaw, arrivalYaw, baseRadius = 490 }
   }, [departureYaw, arrivalYaw]);
 
   useFrame(({ clock }) => {
-    if (!texture || !materialRef.current) return;
+    if (!material) return;
     if (fadeStart.current === null) fadeStart.current = clock.elapsedTime;
     const t = Math.min(1, (clock.elapsedTime - fadeStart.current) / CROSSFADE_S);
     // easeInOutCubic
     const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    materialRef.current.opacity = eased;
+    material.opacity = eased;
   });
 
-  if (!texture) return null;
+  if (!texture || !material) return null;
 
   return (
     <group position={offset} rotation={[0, rotationY, 0]}>
       <mesh scale={[-1, 1, 1]} renderOrder={1}>
-        <sphereGeometry args={[baseRadius, 64, 32]} />
-        <meshBasicMaterial
-          ref={materialRef}
-          map={texture}
-          side={THREE.BackSide}
-          transparent
-          opacity={0}
-          depthWrite={false}
-          depthTest={false}
-        />
+        <sphereGeometry args={[baseRadius, PANO_SEGMENTS_W, PANO_SEGMENTS_H]} />
+        <primitive object={material} attach="material" />
       </mesh>
     </group>
   );
@@ -607,6 +774,7 @@ export default function PanoramaViewer({
         {/* The current scene sphere */}
         <PanoramaSphere
           imageUrl={currentScene.panoramaUrl}
+          depthUrl={currentScene.depthUrl}
           onLoaded={handleLoaded}
           baseRadius={500}
         />
@@ -616,6 +784,7 @@ export default function PanoramaViewer({
           <IncomingSphere
             key={incomingScene.id}
             imageUrl={incomingScene.panoramaUrl}
+            depthUrl={incomingScene.depthUrl}
             departureYaw={departureYawRef.current ?? cameraYawRef.current}
             arrivalYaw={arrivalYaw}
           />
