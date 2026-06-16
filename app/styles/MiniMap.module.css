@@ -44,16 +44,42 @@
   -webkit-user-select: none;
 }
 
-.plotMicroPin {
+.plotMicroPinHit {
   position: absolute;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.plotMicroPinHit:hover {
+  z-index: 4;
+}
+
+.plotMicroPin {
+  position: relative;
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  transform: translate(-50%, -50%);
   background: var(--color-accent-secondary);
   border: 1px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 3px rgba(15, 77, 41, 0.5);
   pointer-events: none;
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.plotMicroPinHit:hover .plotMicroPin {
+  transform: scale(1.6);
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  box-shadow: 0 0 8px rgba(31, 122, 60, 0.6);
 }
 
 .expandButton {

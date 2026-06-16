@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSceneNavigation } from '../hooks/useSceneNavigation';
 import LoadingScreen from '../components/LoadingScreen';
@@ -21,6 +21,7 @@ export default function WalkthroughPage() {
   // the walk orchestrator, updated every frame via a ref to avoid re-rendering
   // React at 60fps.
   const cameraYawRef = useRef(0);
+  const [activePlot, setActivePlot] = useState(null);
 
   const {
     currentScene,
@@ -56,6 +57,7 @@ export default function WalkthroughPage() {
   }, [onLoadComplete, updateLoadingProgress]);
 
   const handlePanoramaNavigate = useCallback((sceneId) => {
+    setActivePlot(null); // Close plot info if navigating away
     navigateToScene(sceneId);
   }, [navigateToScene]);
 
@@ -90,6 +92,8 @@ export default function WalkthroughPage() {
                 isWalking={isWalking}
                 panYaw={panYaw}
                 cameraYawRef={cameraYawRef}
+                activePlot={activePlot}
+                onPlotSelect={setActivePlot}
               />
             )}
           </div>
@@ -104,6 +108,7 @@ export default function WalkthroughPage() {
           onSceneSelect={(id) => navigateToScene(id)}
           cameraYawRef={cameraYawRef}
           adjacentScenes={adjacentScenes}
+          onPlotSelect={setActivePlot}
         />
       )}
     </div>

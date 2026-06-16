@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue } from 'framer-motion';
 import { sceneAdjacency } from '../data/scenes';
 import { plots } from '../data/plots';
 import {
@@ -17,10 +17,13 @@ import styles from '../styles/MiniMap.module.css';
 // scene — game-minimap style. Click the radar for the full site map.
 const REGION_WORLD_MM = 220000;
 
-export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneSelect, cameraYawRef, adjacentScenes }) {
+export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneSelect, cameraYawRef, adjacentScenes, onPlotSelect }) {
   const coneRef = useRef(null);
   const coneAngleRef = useRef(0);
   const [expanded, setExpanded] = useState(false);
+
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
 
   // Scene dots georeferenced onto the site map (fractions of the map image).
   // Everything on the map — image, scene dots, plot pins — shares the single
@@ -37,7 +40,7 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
   );
 
   const plotPins = useMemo(
-    () => plots.filter((p) => p.map).map((p) => ({ id: p.id, u: p.map.u, v: p.map.v })),
+    () => plots.filter((p) => p.map).map((p) => ({ id: p.id, name: p.name, u: p.map.u, v: p.map.v, plot: p })),
     []
   );
 
@@ -54,17 +57,15 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
     return { w, h, left: 50 - u * w, top: 50 - v * h };
   }, [positions, currentSceneId]);
 
+  useEffect(() => {
+    // Reset drag offset when scene changes to recenter
+    x.set(0);
+    y.set(0);
+  }, [currentSceneId, x, y]);
+
   // Rotate the cone to show where the camera is actually facing — SELF-CALIBRATED
   // from the scene's own hotspots (which the user placed and trusts), NOT from the
   // often-uncalibrated yawOffset.
-  //
-  // The cone maps camera euler.y to an on-map angle linearly with slope -1:
-  // coneAngle = -euler.y + C. Each hotspot gives one calibration sample: we know
-  // the euler.y that faces it (adj.yaw) and its CSV-frame bearing w from the raw
-  // camera coordinates. Because the map lives in MODEL space, which is the CSV
-  // frame with X/Y swapped (see geo.js), the on-map cone constant per sample is
-  // C = 3π/2 − w + adj.yaw (the swap mirrors bearings: mapAngle = 3π/2 − w − ...).
-  // Circular-averaged over every hotspot for robustness.
   useEffect(() => {
     let sumSin = 0;
     let sumCos = 0;
@@ -118,14 +119,19 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
           onClick={() => setExpanded(true)}
           title="Open site map"
         >
-          <div
+          <motion.div
             className={styles.regionLayer}
             style={{
               width: `${layer.w}%`,
               height: `${layer.h}%`,
               left: `${layer.left}%`,
               top: `${layer.top}%`,
+              x,
+              y
             }}
+            drag
+            dragMomentum={true}
+            dragElastic={0.1}
           >
             <img src={SITE_MAP.url} alt="" className={styles.regionImage} draggable={false} />
 
@@ -152,13 +158,20 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
               })}
             </svg>
 
-            {/* Plot pins (visual only at radar scale — interact in the full map) */}
+            {/* Plot pins */}
             {plotPins.map((p) => (
-              <span
+              <button
                 key={p.id}
-                className={styles.plotMicroPin}
+                className={styles.plotMicroPinHit}
                 style={{ left: `${p.u * 100}%`, top: `${p.v * 100}%` }}
-              />
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onPlotSelect) onPlotSelect(p.plot);
+                }}
+                title={p.name}
+              >
+                <span className={styles.plotMicroPin} />
+              </button>
             ))}
 
             {/* Scene dots — large transparent hit areas around small visual dots */}
@@ -194,7 +207,7 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
                 </button>
               );
             })}
-          </div>
+          </motion.div>
 
           {/* Expand affordance (also the keyboard path into the full map) */}
           <button
@@ -222,6 +235,7 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
           setExpanded(false);
           onSceneSelect(id);
         }}
+        onPlotSelect={onPlotSelect}
       />
     </>
   );

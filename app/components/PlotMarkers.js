@@ -109,6 +109,12 @@ const PIN_W      = 5;
 const PIN_H      = PIN_W * (196 / 128); // ≈ 7.66
 const PIN_HALF_H = PIN_H / 2;           // ≈ 3.83
 
+// The canvas tip is drawn at H - 6, meaning the bottom 6 pixels are shadow.
+// To align the exact visual tip with the ground (y=0), we shift the plane
+// up by slightly less than half its height.
+const TIP_OFFSET = (6 / 196) * PIN_H;
+const PIN_Y_POS  = PIN_HALF_H - TIP_OFFSET;
+
 // ─── Individual pin ───────────────────────────────────────────────────────────
 function PlotTag({ entry, isActive, onSelect }) {
   const [hovered, setHovered] = useState(false);
@@ -165,10 +171,10 @@ function PlotTag({ entry, isActive, onSelect }) {
         <meshBasicMaterial color="#000000" transparent opacity={0.30} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
 
-      {/* Pin body. The mesh is centred at y = PIN_HALF_H so the BOTTOM EDGE
-          (spike tip) sits at y = 0 — the plot's actual world position.
+      {/* Pin body. The mesh is centred at y = PIN_Y_POS so the visual spike tip
+          sits exactly at y = 0 — the plot's actual world position.
           The head rises above into the scene, visually "planted" at that spot. */}
-      <mesh position={[0, PIN_HALF_H, 0]}>
+      <mesh position={[0, PIN_Y_POS, 0]}>
         <planeGeometry args={[PIN_W, PIN_H]} />
         <meshBasicMaterial map={pinTexture} transparent alphaTest={0.04} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>

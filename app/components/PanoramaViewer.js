@@ -520,7 +520,9 @@ export default function PanoramaViewer({
   isTransitioning,
   isWalking = false,
   panYaw = null,
-  cameraYawRef
+  cameraYawRef,
+  activePlot,
+  onPlotSelect
 }) {
   // Which panorama URL has finished loading. Deriving isLoaded from this (instead
   // of a boolean that one effect sets and another resets) makes it immune to
@@ -529,7 +531,6 @@ export default function PanoramaViewer({
   const [loadedUrl, setLoadedUrl] = useState(null);
   const isLoaded = loadedUrl === currentScene.panoramaUrl;
   const [showDragHint, setShowDragHint] = useState(false);
-  const [activePlot, setActivePlot] = useState(null);
 
   // Plot tags sit at their TRUE distance from the camera, so the arrival glide
   // (camera travelling forward while settling) would visibly sweep them around.
@@ -564,10 +565,8 @@ export default function PanoramaViewer({
     }
   }, [currentScene.id, isTransitioning]);
 
-  // Close any open plot panel when walking to another scene
-  useEffect(() => {
-    setActivePlot(null);
-  }, [currentScene.id]);
+  // Close any open plot panel when walking to another scene is already handled by WalkthroughPage
+  // However, we don't have to duplicate it here if handled there.
 
   useEffect(() => {
     if (isLoaded && !isTransitioning) {
@@ -650,12 +649,12 @@ export default function PanoramaViewer({
           <PlotMarkers
             sceneId={currentScene.id}
             activePlotId={activePlot?.id}
-            onSelect={setActivePlot}
+            onSelect={onPlotSelect}
           />
         )}
       </Canvas>
 
-      <PlotInfoPanel plot={activePlot} onClose={() => setActivePlot(null)} />
+      <PlotInfoPanel plot={activePlot} onClose={() => onPlotSelect(null)} />
 
       {!isLoaded && !isTransitioning && (
         <div className={styles.panoLoading}>

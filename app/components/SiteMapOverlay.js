@@ -1,15 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useMotionValue } from 'framer-motion';
 import { sceneAdjacency } from '../data/scenes';
 import { plots } from '../data/plots';
 import { SITE_MAP } from '../data/geo';
-import PlotInfoPanel from './PlotInfoPanel';
 import styles from '../styles/SiteMapOverlay.module.css';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 5;
-const DRAG_THRESHOLD_PX = 5;
 
 const STATUS_CLASS = {
   available: 'pinAvailable',
@@ -23,20 +22,14 @@ const STATUS_CLASS = {
  * plot pins open the info panel, scene dots walk you there. Escape closes the
  * plot panel first, then the map — never the tour.
  */
-export default function SiteMapOverlay({ open, onClose, scenePoints, currentSceneId, onSceneSelect }) {
+export default function SiteMapOverlay({ open, onClose, scenePoints, currentSceneId, onSceneSelect, onPlotSelect }) {
   const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [selectedPlot, setSelectedPlot] = useState(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
 
   const viewportRef = useRef(null);
-  const dragRef = useRef(null);
-  const dragJustEndedRef = useRef(false);
   const zoomRef = useRef(zoom);
-  const panRef = useRef(pan);
-  const selectedRef = useRef(selectedPlot);
   zoomRef.current = zoom;
-  panRef.current = pan;
-  selectedRef.current = selectedPlot;
 
   const aspect = SITE_MAP.imageWidth / SITE_MAP.imageHeight;
 
@@ -57,19 +50,16 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
   useEffect(() => {
     if (open) {
       setZoom(1);
-      setPan({ x: 0, y: 0 });
-      setSelectedPlot(null);
+      x.set(0);
+      y.set(0);
     }
-  }, [open]);
+  }, [open, x, y]);
 
-  // Escape, capture phase: if a plot panel is open let ITS handler close it;
-  // otherwise close the map — and stop the event so the tour's Escape→home
-  // binding never fires underneath.
+  // Escape to close map
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
-      if (selectedRef.current) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       onClose();
@@ -78,15 +68,6 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
     return () => window.removeEventListener('keydown', onKey, { capture: true });
   }, [open, onClose]);
 
-  const clampPan = (p, z, vp) => {
-    const limX = ((z - 1) * vp.width) / 2 + 80;
-    const limY = ((z - 1) * vp.height) / 2 + 80;
-    return {
-      x: Math.min(limX, Math.max(-limX, p.x)),
-      y: Math.min(limY, Math.max(-limY, p.y)),
-    };
-  };
-
   const zoomAround = (factor, clientX, clientY) => {
     const el = viewportRef.current;
     if (!el) return;
@@ -94,14 +75,15 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
     const cx = vp.left + vp.width / 2;
     const cy = vp.top + vp.height / 2;
     const z = zoomRef.current;
-    const p = panRef.current;
     const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * factor));
     if (nz === z) return;
+    
     // Keep the point under (clientX, clientY) stationary while scaling.
-    const ax = (clientX - cx - p.x) / z;
-    const ay = (clientY - cy - p.y) / z;
+    const ax = (clientX - cx - x.get()) / z;
+    const ay = (clientY - cy - y.get()) / z;
     setZoom(nz);
-    setPan(clampPan({ x: clientX - cx - ax * nz, y: clientY - cy - ay * nz }, nz, vp));
+    x.set(clientX - cx - ax * nz);
+    y.set(clientY - cy - ay * nz);
   };
 
   // Native wheel listener: must be non-passive to preventDefault page scroll.
@@ -119,43 +101,6 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
 
   if (!open) return null;
 
-  const onPointerDown = (e) => {
-    if (e.button !== 0) return;
-    dragRef.current = {
-      sx: e.clientX,
-      sy: e.clientY,
-      px: panRef.current.x,
-      py: panRef.current.y,
-      moved: false,
-    };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e) => {
-    const d = dragRef.current;
-    if (!d) return;
-    const dx = e.clientX - d.sx;
-    const dy = e.clientY - d.sy;
-    if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD_PX) d.moved = true;
-    if (!d.moved) return;
-    const vp = viewportRef.current.getBoundingClientRect();
-    setPan(clampPan({ x: d.px + dx, y: d.py + dy }, zoomRef.current, vp));
-  };
-
-  const onPointerUp = () => {
-    dragJustEndedRef.current = !!dragRef.current?.moved;
-    dragRef.current = null;
-  };
-
-  // After a drag, swallow the click that follows so pins/backdrop don't react.
-  const onClickCapture = (e) => {
-    if (dragJustEndedRef.current) {
-      dragJustEndedRef.current = false;
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
-
   const counterScale = { transform: `translate(-50%, -50%) scale(${1 / zoom})` };
 
   return (
@@ -166,16 +111,14 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
       aria-modal="true"
       aria-label="Site map"
       onClick={onClose}
-      onClickCapture={onClickCapture}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
     >
       {/* The pannable/zoomable stage */}
-      <div
+      <motion.div
         className={styles.stage}
-        style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+        style={{ x, y, scale: zoom }}
+        drag
+        dragMomentum={true}
+        dragElastic={0.1}
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -211,11 +154,12 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
           {pins.map(({ plot, u, v, statusClass }) => (
             <button
               key={plot.id}
-              className={`${styles.pin} ${styles[statusClass]} ${selectedPlot?.id === plot.id ? styles.pinSelected : ''}`}
+              className={`${styles.pin} ${styles[statusClass]}`}
               style={{ left: `${u * 100}%`, top: `${v * 100}%`, ...counterScale }}
               onClick={(e) => {
                 e.stopPropagation();
-                setSelectedPlot((cur) => (cur?.id === plot.id ? null : plot));
+                onPlotSelect(plot);
+                onClose();
               }}
               aria-label={`${plot.name} details`}
             >
@@ -244,7 +188,7 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
             );
           })}
         </div>
-      </div>
+      </motion.div>
 
       {/* Chrome — stop pointer/clicks from reaching the pan surface */}
       <header className={styles.topBar} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
@@ -278,7 +222,8 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
         <button
           onClick={() => {
             setZoom(1);
-            setPan({ x: 0, y: 0 });
+            x.set(0);
+            y.set(0);
           }}
           aria-label="Reset view"
         >
@@ -300,11 +245,6 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
           <i className={`${styles.legendSwatch} ${styles.swatchScene}`} /> Walk point
         </span>
       </footer>
-
-      {/* Plot details card (shared with the 3D tags) */}
-      <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-        <PlotInfoPanel plot={selectedPlot} onClose={() => setSelectedPlot(null)} />
-      </div>
     </div>
   );
 }

@@ -128,7 +128,7 @@ const PLOT_SOURCE = [
   P(70, 333188, 672282, 830),
   P(71, 332183, 693471, 830),
   P(72, 426789, 633388, 830),
-  P(73, 357389, 595168, 830),
+  // P(73, 357389, 595168, 830),
   P(74, 329379, 593370, 830),
   P(75, 300650, 584702, 830),
   P(76, 435066, 610717, 830),
@@ -177,7 +177,7 @@ const PLOT_SOURCE = [
 // standing on that road cares about; the full site map shows everything at
 // once. Per-plot `maxDistance` overrides this (set Infinity to always show);
 // authored marks are always shown regardless.
-const DEFAULT_MAX_DISTANCE = 40;
+const DEFAULT_MAX_DISTANCE = 33;
 
 // Camera-frame conventions (must match BuilderMode capture + hotspot placement):
 //   direction(yaw, pitch) = (-sin(yaw)·cos(pitch), sin(pitch), -cos(yaw)·cos(pitch))
@@ -200,31 +200,49 @@ function wrapAngle(a) {
  * the hand-tuned yawOffset, which is only used as a fallback.
  */
 const sceneCalibration = {};
+const scenePitchCalibration = {};
+
 for (const scene of scenes) {
   let sumSin = 0;
   let sumCos = 0;
+  let pitchOffsetSum = 0;
   let count = 0;
+
   for (const h of scene.hotspots) {
     const target = getSceneById(h.targetId);
     if (!target || h.yaw === undefined) continue;
     const dx = target.position[0] - scene.position[0];
+    const dy = target.position[1] - scene.position[1];
     const dz = target.position[2] - scene.position[2];
-    const delta = worldYawOf(dx, dz) - h.yaw;
-    sumSin += Math.sin(delta);
-    sumCos += Math.cos(delta);
+
+    // Yaw difference
+    const deltaYaw = worldYawOf(dx, dz) - h.yaw;
+    sumSin += Math.sin(deltaYaw);
+    sumCos += Math.cos(deltaYaw);
+
+    // Pitch difference (true pitch - visual pitch)
+    if (h.pitch !== undefined) {
+      const horizontal = Math.sqrt(dx * dx + dz * dz);
+      const truePitch = Math.atan2(dy, horizontal);
+      pitchOffsetSum += (truePitch - h.pitch);
+    }
+
     count++;
   }
+
   sceneCalibration[scene.id] =
     count > 0 ? Math.atan2(sumSin, sumCos) : scene.yawOffset || 0;
+  scenePitchCalibration[scene.id] = count > 0 ? (pitchOffsetSum / count) : 0;
 }
 
 /** World-space unit ray direction for a mark made in a given scene. */
 function markToWorldRay(scene, mark) {
   const w = mark.yaw + sceneCalibration[scene.id];
-  const cp = Math.cos(mark.pitch);
+  const truePitch = mark.pitch + (scenePitchCalibration[scene.id] || 0);
+  const cp = Math.cos(truePitch);
   return {
     origin: scene.position,
-    dir: [-Math.sin(w) * cp, Math.sin(mark.pitch), -Math.cos(w) * cp],
+    dir: [-Math.sin(w) * cp, Math.sin(truePitch), -Math.cos(w) * cp],
   };
 }
 
@@ -347,7 +365,7 @@ export function getPlotsForScene(sceneId) {
     result.push({
       plot,
       yaw: wrapAngle(worldYawOf(dx, dz) - sceneCalibration[sceneId]),
-      pitch: Math.atan2(dy, horizontal),
+      pitch: Math.atan2(dy, horizontal) - (scenePitchCalibration[sceneId] || 0),
       distance,
     });
   }
