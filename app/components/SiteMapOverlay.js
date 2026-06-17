@@ -16,6 +16,18 @@ const STATUS_CLASS = {
   sold: 'pinSold',
 };
 
+// Distinct, high-contrast marker colours assigned per road/area (first-come
+// order). Deliberately NO greens — the site plan is green, so greens vanish into
+// it. Ordered so consecutively-discovered (usually adjacent) roads contrast hard.
+const ROAD_PALETTE = [
+  '#e6194b', '#3c5fe0', '#f58231', '#9b30c4', '#00a3cc', '#d0249e',
+  '#c99000', '#2a2a8c', '#8d5a2b', '#d81b60', '#006d8f', '#b00020',
+];
+
+// A scene's road/area = its name with any trailing number stripped, so
+// "Vitality Avenue 1/2/3" all collapse to "Vitality Avenue".
+const roadGroup = (name) => name.replace(/\s*\d+\s*$/, '').trim();
+
 /**
  * Full-screen site map (game-style): the georeferenced plan with every plot
  * pin and scene dot on it. Wheel/buttons zoom (toward the cursor), drag pans,
@@ -30,7 +42,7 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
   const viewportRef = useRef(null);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
-  const pinchRef = useRef(null); // active two-finger pinch gesture snapshot
+  const suppressClickRef = useRef(false); // ignore the click synthesised after a pinch
 
   const aspect = SITE_MAP.imageWidth / SITE_MAP.imageHeight;
 
@@ -52,6 +64,22 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
         }),
     []
   );
+
+  // Map each scene to a colour by its road/area, and build the legend (one entry
+  // per road, in the order roads first appear). Same road name → same colour.
+  const { colorOf, roadLegend } = useMemo(() => {
+    const colorByGroup = new Map();
+    const roadLegend = [];
+    for (const p of scenePoints) {
+      const g = roadGroup(p.name);
+      if (!colorByGroup.has(g)) {
+        const color = ROAD_PALETTE[colorByGroup.size % ROAD_PALETTE.length];
+        colorByGroup.set(g, color);
+        roadLegend.push({ name: g, color });
+      }
+    }
+    return { colorOf: (name) => colorByGroup.get(roadGroup(name)), roadLegend };
+  }, [scenePoints]);
 
   // Walk-graph edges → line endpoints. Depends only on scene geometry, so it's
   // computed once instead of rebuilt on every pan/zoom render.
@@ -122,78 +150,83 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
     return () => el.removeEventListener('wheel', onWheel);
   }, [open]);
 
-  // Touch pinch-to-zoom — the touch-screen equivalent of the wheel zoom. It uses
-  // the SAME centre-anchored transform as zoomAround, but driven by the live pinch
-  // midpoint so the spot between your fingers stays put while you scale (and the
-  // map follows your fingers, giving natural pan too). Everything is derived from
-  // a snapshot taken at the gesture's start, so the zoom is smooth and drift-free
-  // regardless of React's commit timing. Must be non-passive to preventDefault the
-  // browser's own page pinch-zoom. Mouse/trackpad behaviour is untouched.
+  // Touch pinch-to-zoom — the touch-screen equivalent of the wheel zoom. Built on
+  // Pointer Events so it works uniformly across phones, tablets and touch laptops.
+  // It uses the SAME centre-anchored transform as zoomAround, driven by the live
+  // pinch midpoint, so the spot between your fingers stays put while you scale (and
+  // the map follows your fingers, giving natural pan too). The transform is derived
+  // from a snapshot taken when the second finger lands, so it's smooth and
+  // drift-free regardless of React's commit timing. Browser pinch/scroll is held
+  // off by `touch-action: none` on the map (see CSS). Mouse stays on the wheel zoom.
   useEffect(() => {
     if (!open) return;
     const el = viewportRef.current;
     if (!el) return;
 
-    const distance = (touches) =>
-      Math.hypot(
-        touches[0].clientX - touches[1].clientX,
-        touches[0].clientY - touches[1].clientY
-      );
+    const pointers = new Map(); // pointerId -> { x, y }
+    let pinch = null; // { cx, cy, startDist, startZoom, px, py }
 
-    const onTouchStart = (e) => {
-      if (e.touches.length !== 2) return;
-      e.preventDefault();
+    const gap = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) || 1;
+
+    const beginPinch = () => {
+      const [a, b] = [...pointers.values()];
       const vp = el.getBoundingClientRect();
       const cx = vp.left + vp.width / 2;
       const cy = vp.top + vp.height / 2;
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - cx;
-      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - cy;
+      const midX = (a.x + b.x) / 2 - cx;
+      const midY = (a.y + b.y) / 2 - cy;
       const z = zoomRef.current;
-      pinchRef.current = {
+      pinch = {
         cx,
         cy,
-        startDist: distance(e.touches) || 1,
+        startDist: gap(a, b),
         startZoom: z,
-        // Stage-local point currently under the pinch centre — kept under the
-        // (moving) midpoint for the whole gesture.
+        // Stage-local point under the pinch centre — kept under the (moving)
+        // midpoint for the whole gesture.
         px: (midX - x.get()) / z,
         py: (midY - y.get()) / z,
       };
     };
 
-    const onTouchMove = (e) => {
-      const g = pinchRef.current;
-      if (!g || e.touches.length !== 2) return;
-      e.preventDefault();
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - g.cx;
-      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - g.cy;
+    const onPointerDown = (e) => {
+      if (e.pointerType === 'mouse') return; // mouse keeps the wheel zoom
+      if (pointers.size === 0) suppressClickRef.current = false;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) beginPinch();
+    };
+
+    const onPointerMove = (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (!pinch || pointers.size < 2) return;
+      const [a, b] = [...pointers.values()];
+      const midX = (a.x + b.x) / 2 - pinch.cx;
+      const midY = (a.y + b.y) / 2 - pinch.cy;
       const nz = Math.min(
         MAX_ZOOM,
-        Math.max(MIN_ZOOM, g.startZoom * (distance(e.touches) / g.startDist))
+        Math.max(MIN_ZOOM, pinch.startZoom * (gap(a, b) / pinch.startDist))
       );
       setZoom(nz);
-      x.set(midX - nz * g.px);
-      y.set(midY - nz * g.py);
+      x.set(midX - nz * pinch.px);
+      y.set(midY - nz * pinch.py);
+      // A pinch happened — don't let the trailing click close the map.
+      suppressClickRef.current = true;
     };
 
-    const onTouchEnd = (e) => {
-      if (pinchRef.current && e.touches.length < 2) {
-        pinchRef.current = null;
-        // Swallow the click the browser would synthesise after the gesture so a
-        // pinch never accidentally closes the map.
-        e.preventDefault();
-      }
+    const endPointer = (e) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinch = null;
     };
 
-    el.addEventListener('touchstart', onTouchStart, { passive: false });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd, { passive: false });
-    el.addEventListener('touchcancel', onTouchEnd, { passive: false });
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove);
+    el.addEventListener('pointerup', endPointer);
+    el.addEventListener('pointercancel', endPointer);
     return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', endPointer);
+      el.removeEventListener('pointercancel', endPointer);
     };
   }, [open, x, y]);
 
@@ -208,7 +241,13 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
       role="dialog"
       aria-modal="true"
       aria-label="Site map"
-      onClick={onClose}
+      onClick={() => {
+        if (suppressClickRef.current) {
+          suppressClickRef.current = false;
+          return;
+        }
+        onClose();
+      }}
     >
       {/* The pannable/zoomable stage */}
       <motion.div
@@ -257,7 +296,8 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
             </button>
           ))}
 
-          {/* Scene dots — click to walk there */}
+          {/* Scene dots — click to walk there. Coloured by road/area (see legend);
+              the full name shows on hover and for the active scene. */}
           {scenePoints.map((pos) => {
             const isActive = pos.id === currentSceneId;
             return (
@@ -271,8 +311,12 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
                 }}
                 aria-label={isActive ? `${pos.name} (you are here)` : `Walk to ${pos.name}`}
               >
-                <span className={styles.sceneDotInner}>{isActive && <span className={styles.sceneDotPulse} />}</span>
-                <span className={styles.sceneLabel}>{isActive ? `${pos.name} — you are here` : pos.name}</span>
+                <span className={styles.sceneDotInner} style={{ background: colorOf(pos.name) }}>
+                  {isActive && <span className={styles.sceneDotPulse} />}
+                </span>
+                <span className={styles.sceneLabel}>
+                  {isActive ? `${pos.name} — you are here` : pos.name}
+                </span>
               </button>
             );
           })}
@@ -320,19 +364,14 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
         </button>
       </div>
 
+      {/* Road / area colour key */}
       <footer className={styles.legend} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-        <span className={styles.legendItem}>
-          <i className={`${styles.legendSwatch} ${styles.swatchAvailable}`} /> Available
-        </span>
-        <span className={styles.legendItem}>
-          <i className={`${styles.legendSwatch} ${styles.swatchReserved}`} /> Reserved
-        </span>
-        <span className={styles.legendItem}>
-          <i className={`${styles.legendSwatch} ${styles.swatchSold}`} /> Sold
-        </span>
-        <span className={styles.legendItem}>
-          <i className={`${styles.legendSwatch} ${styles.swatchScene}`} /> Walk point
-        </span>
+        {roadLegend.map((item) => (
+          <span className={styles.legendItem} key={item.name}>
+            <i className={styles.legendSwatch} style={{ background: item.color }} />
+            {item.name}
+          </span>
+        ))}
       </footer>
     </div>
   );

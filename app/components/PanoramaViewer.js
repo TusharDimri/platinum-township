@@ -374,6 +374,7 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, lockInput = false
   const dollyRef = useRef(0); // signed forward offset along the view axis (travel)
   const warpStartRef = useRef(null); // clock time the outgoing push began
   const settleStartRef = useRef(null); // clock time the arrival glide began
+  const pinchRef = useRef(null); // active two-finger pinch-zoom snapshot
 
   initialYawRef.current = initialYaw;
 
@@ -456,18 +457,40 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, lockInput = false
       targetFov.current = Math.max(30, Math.min(90, targetFov.current + e.deltaY * 0.05));
     };
 
+    const touchGap = (touches) =>
+      Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY
+      ) || 1;
+
     const onTouchStart = (e) => {
-      if (e.touches.length === 1 && !lockInput) {
+      if (lockInput) return;
+      if (e.touches.length === 1) {
         isPointerDown.current = true;
         previousPointer.current = {
           x: e.touches[0].clientX,
           y: e.touches[0].clientY,
         };
+      } else if (e.touches.length === 2) {
+        // Two fingers → pinch-zoom (FOV). Suspend look-drag for the gesture.
+        isPointerDown.current = false;
+        pinchRef.current = { startGap: touchGap(e.touches), startFov: targetFov.current };
       }
     };
 
     const onTouchMove = (e) => {
-      if (!isPointerDown.current || e.touches.length !== 1 || lockInput) return;
+      if (lockInput) return;
+
+      // Pinch-to-zoom: fingers apart → zoom in (narrow FOV), together → zoom out.
+      // Same 30–90° FOV range as the desktop wheel zoom.
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.preventDefault();
+        const ratio = pinchRef.current.startGap / touchGap(e.touches);
+        targetFov.current = Math.max(30, Math.min(90, pinchRef.current.startFov * ratio));
+        return;
+      }
+
+      if (!isPointerDown.current || e.touches.length !== 1) return;
       e.preventDefault();
 
       const dx = e.touches[0].clientX - previousPointer.current.x;
@@ -486,8 +509,20 @@ function PanoramaControls({ initialYaw = 0, isWarping = false, lockInput = false
       };
     };
 
-    const onTouchEnd = () => {
-      isPointerDown.current = false;
+    const onTouchEnd = (e) => {
+      // End the pinch once fewer than two fingers remain.
+      if (e.touches.length < 2) pinchRef.current = null;
+      // If one finger is still down (lifted one of a pinch), resume look-drag from
+      // its current spot so the view doesn't jump; otherwise stop dragging.
+      if (e.touches.length === 1 && !lockInput) {
+        isPointerDown.current = true;
+        previousPointer.current = {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+        };
+      } else if (e.touches.length === 0) {
+        isPointerDown.current = false;
+      }
     };
 
     canvas.style.cursor = 'grab';

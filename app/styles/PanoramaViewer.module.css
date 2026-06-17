@@ -5,6 +5,13 @@
   background: var(--color-bg-primary);
 }
 
+/* The 3D canvas handles its own drag-look and pinch-zoom, so the browser must
+   not claim touch gestures (page pan/zoom) over it. touch-action isn't inherited,
+   so it's set on the canvas element directly. */
+.container canvas {
+  touch-action: none;
+}
+
 /* ---- Walking transition vignette ---- */
 .walkVignette {
   position: absolute;

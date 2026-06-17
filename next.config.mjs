@@ -8,6 +8,8 @@ const nextConfig = {
   staticPageGenerationTimeout: 300,
   // Turbopack config (Next.js 16 default)
   turbopack: {},
+  // Hide the on-screen dev/route indicator (compile & runtime errors still show).
+  devIndicators: false,
 };
 
 export default nextConfig;

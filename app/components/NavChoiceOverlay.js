@@ -63,8 +63,8 @@ export default function NavChoiceOverlay({ open, destinationName, onWalk, onJump
                   <path d="M7 21l3-6 1-4 4 2 2 4M10 11l-2-3 4-2 3 3 2 1" />
                 </svg>
                 <span className={styles.btnText}>
-                  <span className={styles.btnLabel}>Walk the path</span>
-                  <span className={styles.btnHint}>Stroll the streets along the way</span>
+                  <span className={styles.btnLabel}>Jump straight there</span>
+                  <span className={styles.btnHint}>Skip ahead in an instant</span>
                 </span>
               </button>
 
@@ -73,8 +73,8 @@ export default function NavChoiceOverlay({ open, destinationName, onWalk, onJump
                   <path d="M13 2L4.5 13H11l-1 9 8.5-11H12z" />
                 </svg>
                 <span className={styles.btnText}>
-                  <span className={styles.btnLabel}>Jump straight there</span>
-                  <span className={styles.btnHint}>Skip ahead in an instant</span>
+                  <span className={styles.btnLabel}>Walk the path</span>
+                  <span className={styles.btnHint}>Stroll the streets along the way</span>
                 </span>
               </button>
             </div>

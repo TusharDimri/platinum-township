@@ -23,6 +23,15 @@
   will-change: transform;
 }
 
+/* The browser must not claim pinch/scroll on the elements the fingers actually
+   land on (image, pins, dots) — touch-action isn't inherited, so set it across
+   the whole map stage. Without this, native page-zoom swallows the gesture and
+   our pinch-to-zoom never sees clean pointer events. */
+.stage,
+.stage * {
+  touch-action: none;
+}
+
 .mapBox {
   position: relative;
 }
@@ -183,26 +192,34 @@
 
 .sceneLabel {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 3px);
   left: 50%;
   transform: translateX(-50%);
-  padding: 3px 8px;
-  border-radius: 7px;
-  background: rgba(12, 18, 12, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #fff;
-  font-size: 0.62rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(12, 18, 12, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.55rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--transition-fast);
+  transition: opacity var(--transition-fast), background var(--transition-fast);
 }
 
+/* The road/area is shown by colour + legend, so the full name only appears on
+   hover (and for the active "you are here" scene) to keep the plan uncluttered. */
 .sceneDot:hover .sceneLabel,
 .sceneDot:focus-visible .sceneLabel,
 .sceneDotActive .sceneLabel {
   opacity: 1;
+}
+
+.sceneDot:hover .sceneLabel {
+  background: rgba(12, 18, 12, 0.96);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
 /* ---- Chrome ---- */
@@ -291,13 +308,16 @@
   transform: translateX(-50%);
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-md);
-  background: rgba(255, 255, 255, 0.9);
+  justify-content: center;
+  gap: 6px 14px;
+  max-width: min(92vw, 760px);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(var(--blur-md));
   -webkit-backdrop-filter: blur(var(--blur-md));
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-lg);
   padding: var(--space-sm) var(--space-md);
   box-shadow: var(--shadow-sm);
   cursor: default;
