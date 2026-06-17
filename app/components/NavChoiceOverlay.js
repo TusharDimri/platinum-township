@@ -57,7 +57,7 @@ export default function NavChoiceOverlay({ open, destinationName, onWalk, onJump
             </p>
 
             <div className={styles.actions}>
-              <button className={styles.walkButton} onClick={onWalk} autoFocus>
+              <button className={styles.walkButton} onClick={onJump} autoFocus>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="13" cy="4" r="2" />
                   <path d="M7 21l3-6 1-4 4 2 2 4M10 11l-2-3 4-2 3 3 2 1" />
@@ -68,7 +68,7 @@ export default function NavChoiceOverlay({ open, destinationName, onWalk, onJump
                 </span>
               </button>
 
-              <button className={styles.jumpButton} onClick={onJump}>
+              <button className={styles.jumpButton} onClick={onWalk}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M13 2L4.5 13H11l-1 9 8.5-11H12z" />
                 </svg>
