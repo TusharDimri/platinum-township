@@ -37,12 +37,18 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
     () =>
       plots
         .filter((p) => p.map)
-        .map((p) => ({
-          plot: p,
-          u: p.map.u,
-          v: p.map.v,
-          statusClass: STATUS_CLASS[(p.info?.status || 'available').toLowerCase()] || STATUS_CLASS.available,
-        })),
+        .map((p) => {
+          const status = p.info?.status || 'Available';
+          return {
+            plot: p,
+            u: p.map.u,
+            v: p.map.v,
+            // Plot number shown on the pin; falls back to digits in the name.
+            num: p.info?.number ?? (p.name.match(/\d+/)?.[0] || ''),
+            status,
+            statusClass: STATUS_CLASS[status.toLowerCase()] || STATUS_CLASS.available,
+          };
+        }),
     []
   );
 
@@ -156,8 +162,8 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
             ))}
           </svg>
 
-          {/* Plot pins */}
-          {pins.map(({ plot, u, v, statusClass }) => (
+          {/* Plot pins — numbered markers */}
+          {pins.map(({ plot, u, v, num, status, statusClass }) => (
             <button
               key={plot.id}
               className={`${styles.pin} ${styles[statusClass]}`}
@@ -170,8 +176,8 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
               }}
               aria-label={`${plot.name} details`}
             >
-              <span className={styles.pinDot} />
-              <span className={styles.pinLabel}>{plot.name}</span>
+              <span className={styles.pinDot}>{num}</span>
+              <span className={styles.pinLabel}>{plot.name} · {status}</span>
             </button>
           ))}
 

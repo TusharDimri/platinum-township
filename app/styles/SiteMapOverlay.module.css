@@ -65,32 +65,46 @@
   z-index: 6;
 }
 
+/* Numbered marker: a pill that's a circle for 1–2 digits and grows gently for 3.
+   Sized to keep the number clearly legible without crowding neighbouring plots. */
 .pinDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
   border: 1.5px solid rgba(255, 255, 255, 0.95);
   box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
-  transition: transform var(--transition-fast);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0.5px 1.5px rgba(10, 22, 12, 0.6);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .pin:hover .pinDot,
 .pinSelected .pinDot {
-  transform: scale(1.55);
+  transform: scale(1.45);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
 }
 
 .pinAvailable .pinDot {
-  background: #84c341;
+  background: #5a9e2a;
 }
 .pinReserved .pinDot {
-  background: #d8a93c;
+  background: #c2912a;
 }
 .pinSold .pinDot {
-  background: #d05050;
+  background: #c43d3d;
 }
 
 .pinSelected .pinDot {
-  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline: 2px solid rgba(255, 255, 255, 0.9);
   outline-offset: 1.5px;
 }
 
@@ -308,13 +322,13 @@
 }
 
 .swatchAvailable {
-  background: #84c341;
+  background: #5a9e2a;
 }
 .swatchReserved {
-  background: #d8a93c;
+  background: #c2912a;
 }
 .swatchSold {
-  background: #d05050;
+  background: #c43d3d;
 }
 .swatchScene {
   background: var(--color-accent-tertiary);

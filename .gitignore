@@ -10,9 +10,6 @@
 !.yarn/releases
 !.yarn/versions
 
-/public/panoramas
-/public/model
-
 # testing
 /coverage
 
