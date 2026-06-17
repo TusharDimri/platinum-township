@@ -10,14 +10,14 @@ export const SCALE_FACTOR = 1000;
 // Aerial scenes have massive Z (height) values
 const rawScenes = [
   {
-    id: 'scene-56', name: 'Scene 56', type: 'ground', yawOffset: 0, csvName: 'Scene 56', file: 'Scene 56', x: 505909, y: 94380, z: 2628,
+    id: 'scene-56', name: 'Platinum Township Gateway', type: 'ground', yawOffset: 0, csvName: 'Scene 56', file: 'Scene 56', x: 505909, y: 94380, z: 2628,
     hotspots: [
       { targetId: 'scene-57', yaw: 1.5629, pitch: -0.0034 },
     ]
   },
 
   {
-    id: 'scene-57', name: 'Scene 57', type: 'ground', yawOffset: 0, csvName: 'Scene 57', file: 'Scene 57', x: 514090, y: 134200, z: 3135,
+    id: 'scene-57', name: 'Platinum Township Entrance Road', type: 'ground', yawOffset: 0, csvName: 'Scene 57', file: 'Scene 57', x: 514090, y: 134200, z: 3135,
     hotspots: [
       { targetId: 'scene-56', yaw: -1.4239, pitch: -0.0378 },
       { targetId: 'scene-58', yaw: 1.5924, pitch: -0.0054 },
@@ -25,7 +25,7 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-58', name: 'Scene 58', type: 'ground', yawOffset: 0, csvName: 'Scene 58', file: 'Scene 58', x: 526036, y: 212558, z: 2590,
+    id: 'scene-58', name: 'Platinum Circle 2', type: 'ground', yawOffset: 0, csvName: 'Scene 58', file: 'Scene 58', x: 526036, y: 212558, z: 2590,
     hotspots: [
       { targetId: 'scene-57', yaw: -1.9874, pitch: -0.0101 },
       { targetId: 'scene-59', yaw: 1.5463, pitch: -0.0084 },
@@ -33,14 +33,14 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-59', name: 'Scene 59', type: 'ground', yawOffset: 0, csvName: 'Scene 59', file: 'Scene 59', x: 538681, y: 233928, z: 2658,
+    id: 'scene-59', name: 'Platinum Circle 2', type: 'ground', yawOffset: 0, csvName: 'Scene 59', file: 'Scene 59', x: 538681, y: 233928, z: 2658,
     hotspots: [
       { targetId: 'scene-58', yaw: -0.2631, pitch: -0.0289 },
       { targetId: 'scene-60', yaw: -2.7045, pitch: -0.0533 },
     ]
   },
   {
-    id: 'scene-60', name: 'Scene 60', type: 'ground', yawOffset: 0, csvName: 'Scene 60', file: 'Scene 60', x: 548382, y: 237417, z: 2610, hotspots: [
+    id: 'scene-60', name: 'Platinum Circle 3', type: 'ground', yawOffset: 0, csvName: 'Scene 60', file: 'Scene 60', x: 548382, y: 237417, z: 2610, hotspots: [
       { targetId: 'scene-59', yaw: 2.6771, pitch: 0.0076 },
       { targetId: 'scene-62', yaw: -1.5308, pitch: 0.0112 },
       { targetId: 'scene-80', yaw: -0.2022, pitch: -0.0051 },
@@ -51,7 +51,7 @@ const rawScenes = [
 
   // { id: 'scene-61', name: 'Scene 61', type: 'ground', yawOffset: 0, csvName: 'Scene 61', file: 'Scene 61', x: 552271, y: 247041, z: 2581, hotspots: [] },
   {
-    id: 'scene-62', name: 'Scene 62', type: 'ground', yawOffset: 0, csvName: 'Scene 62', file: 'Scene 62', x: 561389, y: 277330, z: 3057,
+    id: 'scene-62', name: 'Vitality Avenue 1', type: 'ground', yawOffset: 0, csvName: 'Scene 62', file: 'Scene 62', x: 561389, y: 277330, z: 3057,
     hotspots: [
       { targetId: 'scene-60', yaw: -1.6172, pitch: -0.0292 },
       { targetId: 'scene-79', yaw: -1.3791, pitch: -0.0268 },
@@ -60,14 +60,14 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-63', name: 'Scene 63', type: 'ground', yawOffset: 0, csvName: 'Scene 63', file: 'Scene 63', x: 581974, y: 339217, z: 2463,
+    id: 'scene-63', name: 'Vitality Avenue 2', type: 'ground', yawOffset: 0, csvName: 'Scene 63', file: 'Scene 63', x: 581974, y: 339217, z: 2463,
     hotspots: [
       { targetId: 'scene-62', yaw: -1.4457, pitch: 0.0166 },
       { targetId: 'scene-64', yaw: 1.7309, pitch: 0.0007 },
     ]
   },
   {
-    id: 'scene-64', name: 'Scene 64', type: 'ground', yawOffset: 0, csvName: 'Scene 64', file: 'Scene 64', x: 590644, y: 368257, z: 2433,
+    id: 'scene-64', name: 'Vitality Avenue 3', type: 'ground', yawOffset: 0, csvName: 'Scene 64', file: 'Scene 64', x: 590644, y: 368257, z: 2433,
     hotspots: [
       { targetId: 'scene-63', yaw: -1.2936, pitch: -0.0100 },
       { targetId: 'scene-76', yaw: -2.9844, pitch: 0.0115 },
@@ -76,7 +76,7 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-65', name: 'Scene 65', type: 'ground', yawOffset: 0, csvName: 'Scene 65', file: 'Scene 65', x: 591462, y: 395606, z: 2437,
+    id: 'scene-65', name: 'Vitality Avenue 4', type: 'ground', yawOffset: 0, csvName: 'Scene 65', file: 'Scene 65', x: 591462, y: 395606, z: 2437,
     hotspots: [
       { targetId: 'scene-64', yaw: -1.4346, pitch: 0.0093 },
       { targetId: 'scene-66', yaw: 1.6614, pitch: -0.0379 },
@@ -85,7 +85,7 @@ const rawScenes = [
 
 
   {
-    id: 'scene-66', name: 'Scene 66', type: 'ground', yawOffset: 0, csvName: 'Scene 66', file: 'Scene 66', x: 592496, y: 426103, z: 2241,
+    id: 'scene-66', name: 'Vitality Avenue 5', type: 'ground', yawOffset: 0, csvName: 'Scene 66', file: 'Scene 66', x: 592496, y: 426103, z: 2241,
     hotspots: [
       { targetId: 'scene-73', yaw: -2.9269, pitch: -0.0084 },
       { targetId: 'scene-65', yaw: -1.4994, pitch: 0.0298 },
@@ -94,14 +94,14 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-67', name: 'Scene 67', type: 'ground', yawOffset: 0, csvName: 'Scene 67', file: 'Scene 67', x: 593884, y: 463697, z: 2738,
+    id: 'scene-67', name: 'Vitality Avenue 6', type: 'ground', yawOffset: 0, csvName: 'Scene 67', file: 'Scene 67', x: 593884, y: 463697, z: 2738,
     hotspots: [
       { targetId: 'scene-66', yaw: -1.5977, pitch: -0.0302 },
       { targetId: 'scene-68', yaw: 1.6790, pitch: 0.0191 },
     ]
   },
   {
-    id: 'scene-68', name: 'Scene 68', type: 'ground', yawOffset: 0, csvName: 'Scene 68', file: 'Scene 68', x: 600072, y: 525352, z: 2375,
+    id: 'scene-68', name: 'Vitality Avenue 7', type: 'ground', yawOffset: 0, csvName: 'Scene 68', file: 'Scene 68', x: 600072, y: 525352, z: 2375,
     hotspots: [
       { targetId: 'scene-67', yaw: 0.1757, pitch: -0.0013 },
       { targetId: 'scene-69', yaw: -1.5822, pitch: -0.0214 },
@@ -109,7 +109,7 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-69', name: 'Scene 69', type: 'ground', yawOffset: 0, csvName: 'Scene 69', file: 'Scene 69', x: 617169, y: 528339, z: 2276, hotspots:
+    id: 'scene-69', name: 'Shanti Lane', type: 'ground', yawOffset: 0, csvName: 'Scene 69', file: 'Scene 69', x: 617169, y: 528339, z: 2276, hotspots:
       [
         { targetId: 'scene-68', yaw: -1.7984, pitch: -0.0098 },
         { targetId: 'scene-70', yaw: 1.7059, pitch: 0.0023 },
@@ -117,7 +117,7 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-70', name: 'Scene 70', type: 'ground', yawOffset: 0, csvName: 'Scene 70', file: 'Scene 70', x: 653645, y: 522043, z: 2229,
+    id: 'scene-70', name: 'Prakriti Lane 1', type: 'ground', yawOffset: 0, csvName: 'Scene 70', file: 'Scene 70', x: 653645, y: 522043, z: 2229,
     hotspots: [
       { targetId: 'scene-69', yaw: -3.1027, pitch: 0.0058 },
       { targetId: 'scene-71', yaw: 1.5567, pitch: -0.0056 },
@@ -125,14 +125,14 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-71', name: 'Scene 71', type: 'ground', yawOffset: 0, csvName: 'Scene 71', file: 'Scene 71', x: 652331, y: 501442, z: 2401, hotspots: [
+    id: 'scene-71', name: 'Prakriti Lane 2', type: 'ground', yawOffset: 0, csvName: 'Scene 71', file: 'Scene 71', x: 652331, y: 501442, z: 2401, hotspots: [
       { targetId: 'scene-70', yaw: -1.4836, pitch: -0.0329 },
       { targetId: 'scene-72', yaw: 1.5531, pitch: 0.0268 },
     ]
   },
 
   {
-    id: 'scene-72', name: 'Scene 72', type: 'ground', yawOffset: 0, csvName: 'Scene 72', file: 'Scene 72', x: 651242, y: 470611, z: 2651, hotspots: [
+    id: 'scene-72', name: 'Prakriti Lane 3', type: 'ground', yawOffset: 0, csvName: 'Scene 72', file: 'Scene 72', x: 651242, y: 470611, z: 2651, hotspots: [
       { targetId: 'scene-71', yaw: -1.5847, pitch: -0.0105 },
       { targetId: 'scene-74', yaw: 1.4162, pitch: 0.0027 },
       { targetId: 'scene-73', yaw: 1.8954, pitch: -0.0051 },
@@ -140,7 +140,7 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-73', name: 'Scene 73', type: 'ground', yawOffset: 0, csvName: 'Scene 73', file: 'Scene 73', x: 637124, y: 416293, z: 3339,
+    id: 'scene-73', name: 'Harmony Lane 1', type: 'ground', yawOffset: 0, csvName: 'Scene 73', file: 'Scene 73', x: 637124, y: 416293, z: 3339,
     hotspots: [
       { targetId: 'scene-74', yaw: -1.5362, pitch: -0.0375 },
       { targetId: 'scene-66', yaw: 1.4571, pitch: -0.0360 },
@@ -149,7 +149,7 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-74', name: 'Scene 74', type: 'ground', yawOffset: 0, csvName: 'Scene 74', file: 'Scene 74', x: 661483, y: 409536, z: 2772,
+    id: 'scene-74', name: 'Harmony Lane 2', type: 'ground', yawOffset: 0, csvName: 'Scene 74', file: 'Scene 74', x: 661483, y: 409536, z: 2772,
     hotspots: [
       { targetId: 'scene-72', yaw: -0.4455, pitch: 0.0081 },
       { targetId: 'scene-73', yaw: -1.4851, pitch: -0.0382 },
@@ -161,7 +161,7 @@ const rawScenes = [
   // { id: 'scene-75', name: 'Scene 75', type: 'ground', yawOffset: 0, csvName: 'Scene 75', file: 'Scene 75', x: 596068, y: 371842, z: 2359, hotspots: [] },
 
   {
-    id: 'scene-76', name: 'Scene 76', type: 'ground', yawOffset: 0, csvName: 'Scene 76', file: 'Scene 76', x: 633608, y: 361259, z: 2529,
+    id: 'scene-76', name: 'Sattva Lane 1', type: 'ground', yawOffset: 0, csvName: 'Scene 76', file: 'Scene 76', x: 633608, y: 361259, z: 2529,
     hotspots: [
       { targetId: 'scene-64', yaw: -1.6931, pitch: -0.0072 },
       { targetId: 'scene-77', yaw: 1.5904, pitch: -0.0094 },
@@ -169,7 +169,7 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-77', name: 'Scene 77', type: 'ground', yawOffset: 0, csvName: 'Scene 77', file: 'Scene 77', x: 665182, y: 351874, z: 2673,
+    id: 'scene-77', name: 'Sattva Lane 2', type: 'ground', yawOffset: 0, csvName: 'Scene 77', file: 'Scene 77', x: 665182, y: 351874, z: 2673,
     hotspots: [
       { targetId: 'scene-78', yaw: 1.4190, pitch: -0.0193 },
       { targetId: 'scene-76', yaw: -1.6227, pitch: -0.0235 },
@@ -177,7 +177,7 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-78', name: 'Scene 78', type: 'ground', yawOffset: 0, csvName: 'Scene 78', file: 'Scene 78', x: 701368, y: 351402, z: 2164,
+    id: 'scene-78', name: 'Ojas Path', type: 'ground', yawOffset: 0, csvName: 'Scene 78', file: 'Scene 78', x: 701368, y: 351402, z: 2164,
     hotspots: [
       { targetId: 'scene-77', yaw: -0.3664, pitch: 0.0043 },
       { targetId: 'scene-74', yaw: 0.5846, pitch: 0.0120 },
@@ -195,7 +195,7 @@ const rawScenes = [
   // },
 
   {
-    id: 'scene-80', name: 'Scene 80', type: 'ground', yawOffset: 0, csvName: 'Scene 80', file: 'Scene 80', x: 581964, y: 236556, z: 2290,
+    id: 'scene-80', name: 'Tejas Lane', type: 'ground', yawOffset: 0, csvName: 'Scene 80', file: 'Scene 80', x: 581964, y: 236556, z: 2290,
     hotspots: [
       { targetId: 'scene-81', yaw: 1.1035, pitch: -0.0068 },
       { targetId: 'scene-60', yaw: -1.8097, pitch: 0.0002 },
@@ -203,7 +203,7 @@ const rawScenes = [
   },
 
   {
-    id: 'scene-81', name: 'Scene 81', type: 'ground', yawOffset: 0, csvName: 'Scene 81', file: 'Scene 81', x: 605372, y: 241817, z: 2448,
+    id: 'scene-81', name: 'Veda Lane', type: 'ground', yawOffset: 0, csvName: 'Scene 81', file: 'Scene 81', x: 605372, y: 241817, z: 2448,
     hotspots: [
       { targetId: 'scene-80', yaw: -0.6077, pitch: -0.0123 },
     ]
