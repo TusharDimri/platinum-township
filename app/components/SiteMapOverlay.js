@@ -30,6 +30,7 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
   const viewportRef = useRef(null);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+  const pinchRef = useRef(null); // active two-finger pinch gesture snapshot
 
   const aspect = SITE_MAP.imageWidth / SITE_MAP.imageHeight;
 
@@ -120,6 +121,81 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [open]);
+
+  // Touch pinch-to-zoom — the touch-screen equivalent of the wheel zoom. It uses
+  // the SAME centre-anchored transform as zoomAround, but driven by the live pinch
+  // midpoint so the spot between your fingers stays put while you scale (and the
+  // map follows your fingers, giving natural pan too). Everything is derived from
+  // a snapshot taken at the gesture's start, so the zoom is smooth and drift-free
+  // regardless of React's commit timing. Must be non-passive to preventDefault the
+  // browser's own page pinch-zoom. Mouse/trackpad behaviour is untouched.
+  useEffect(() => {
+    if (!open) return;
+    const el = viewportRef.current;
+    if (!el) return;
+
+    const distance = (touches) =>
+      Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY
+      );
+
+    const onTouchStart = (e) => {
+      if (e.touches.length !== 2) return;
+      e.preventDefault();
+      const vp = el.getBoundingClientRect();
+      const cx = vp.left + vp.width / 2;
+      const cy = vp.top + vp.height / 2;
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - cx;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - cy;
+      const z = zoomRef.current;
+      pinchRef.current = {
+        cx,
+        cy,
+        startDist: distance(e.touches) || 1,
+        startZoom: z,
+        // Stage-local point currently under the pinch centre — kept under the
+        // (moving) midpoint for the whole gesture.
+        px: (midX - x.get()) / z,
+        py: (midY - y.get()) / z,
+      };
+    };
+
+    const onTouchMove = (e) => {
+      const g = pinchRef.current;
+      if (!g || e.touches.length !== 2) return;
+      e.preventDefault();
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - g.cx;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - g.cy;
+      const nz = Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, g.startZoom * (distance(e.touches) / g.startDist))
+      );
+      setZoom(nz);
+      x.set(midX - nz * g.px);
+      y.set(midY - nz * g.py);
+    };
+
+    const onTouchEnd = (e) => {
+      if (pinchRef.current && e.touches.length < 2) {
+        pinchRef.current = null;
+        // Swallow the click the browser would synthesise after the gesture so a
+        // pinch never accidentally closes the map.
+        e.preventDefault();
+      }
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: false });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [open, x, y]);
 
   if (!open) return null;
 
