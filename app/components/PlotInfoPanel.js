@@ -5,9 +5,14 @@ import styles from '../styles/PlotInfoPanel.module.css';
 
 const FIELD_LABELS = [
   ['area', 'Plot Area'],
-  ['dimensions', 'Dimensions'],
-  ['facing', 'Facing'],
-  ['price', 'Price'],
+  ['front', 'Front'],
+  ['rear', 'Rear'],
+  ['depthR', 'Depth R'],
+  ['depthL', 'Depth L'],
+  ['gardenArea', 'Private Garden Area'],
+  // ['dimensions', 'Dimensions'],
+  // ['facing', 'Facing'],
+  // ['price', 'Price'],
 ];
 
 /**
