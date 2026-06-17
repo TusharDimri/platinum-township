@@ -1,0 +1,136 @@
+/* ---- Jump-or-walk travel chooser ---- */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-popover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(10, 16, 11, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.card {
+  width: min(420px, 100%);
+  background: var(--color-bg-glass-hover);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-xl);
+  text-align: center;
+}
+
+.kicker {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-xs);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--color-text-primary);
+}
+
+.subtitle {
+  margin-top: var(--space-sm);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  display: grid;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.walkButton,
+.jumpButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.walkButton {
+  background: var(--gradient-accent);
+  border: 1px solid transparent;
+  color: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.walkButton:hover {
+  background: var(--gradient-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+.jumpButton {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.jumpButton:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+  transform: translateY(-1px);
+}
+
+.walkButton svg,
+.jumpButton svg {
+  flex-shrink: 0;
+}
+
+.jumpButton svg {
+  color: var(--color-accent-primary);
+}
+
+.btnText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.btnLabel {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.btnHint {
+  font-size: 0.72rem;
+  opacity: 0.82;
+}
+
+.cancelButton {
+  margin-top: var(--space-md);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-full);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.cancelButton:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}

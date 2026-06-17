@@ -138,13 +138,20 @@ export function useSceneNavigation(cameraYawRef) {
     [cameraYawRef, schedule, finishWalk]
   );
 
+  // `options.direct` forces a single forward hop straight to the target (the
+  // "jump" choice from the map), bypassing the BFS road-following walk.
   const navigateToScene = useCallback(
-    (sceneId) => {
+    (sceneId, options) => {
       if (walkingRef.current || sceneId === currentSceneId) return;
       if (!getSceneById(sceneId)) return;
 
-      const path = findPath(currentSceneId, sceneId);
-      const hops = path ? path.slice(1) : [sceneId]; // no path → single direct hop
+      let hops;
+      if (options?.direct) {
+        hops = [sceneId]; // jump: one straight hop, no road-following
+      } else {
+        const path = findPath(currentSceneId, sceneId);
+        hops = path ? path.slice(1) : [sceneId]; // no path → single direct hop
+      }
 
       walkingRef.current = true;
       setIsWalking(true);

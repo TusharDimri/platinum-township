@@ -6,7 +6,6 @@ import * as THREE from 'three';
 import BuilderMode from './BuilderMode';
 import BrandMark from './BrandMark';
 import PlotMarkers from './PlotMarkers';
-import PlotInfoPanel from './PlotInfoPanel';
 import { TRANSITION_MS } from '../hooks/useSceneNavigation';
 import styles from '../styles/PanoramaViewer.module.css';
 
@@ -822,8 +821,6 @@ export default function PanoramaViewer({
           />
         )}
       </Canvas>
-
-      <PlotInfoPanel plot={activePlot} onClose={() => onPlotSelect(null)} />
 
       {!isLoaded && !isTransitioning && (
         <div className={styles.panoLoading}>

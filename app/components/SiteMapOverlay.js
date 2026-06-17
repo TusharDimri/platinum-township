@@ -22,7 +22,7 @@ const STATUS_CLASS = {
  * plot pins open the info panel, scene dots walk you there. Escape closes the
  * plot panel first, then the map — never the tour.
  */
-export default function SiteMapOverlay({ open, onClose, scenePoints, currentSceneId, onSceneSelect, onPlotSelect }) {
+export default function SiteMapOverlay({ open, onClose, scenePoints, currentSceneId, onSceneSelect, onPlotSelect, plotOpen }) {
   const [zoom, setZoom] = useState(1);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -46,6 +46,20 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
     []
   );
 
+  // Walk-graph edges → line endpoints. Depends only on scene geometry, so it's
+  // computed once instead of rebuilt on every pan/zoom render.
+  const connectionLines = useMemo(() => {
+    const byId = new Map(scenePoints.map((p) => [p.id, p]));
+    const lines = [];
+    for (const pos of scenePoints) {
+      for (const a of sceneAdjacency[pos.id] || []) {
+        const t = byId.get(a.id);
+        if (t) lines.push({ key: `${pos.id}-${a.id}`, x1: pos.u * 100, y1: pos.v * 100, x2: t.u * 100, y2: t.v * 100 });
+      }
+    }
+    return lines;
+  }, [scenePoints]);
+
   // Fresh view every time the map opens
   useEffect(() => {
     if (open) {
@@ -55,18 +69,20 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
     }
   }, [open, x, y]);
 
-  // Escape to close map
+  // Escape to close map — but if a plot panel is layered on top, let it handle
+  // Escape first (close the plot, keep the map open). We bail without stopping
+  // propagation so PlotInfoPanel's own capture-phase handler still fires.
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || plotOpen) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       onClose();
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true });
-  }, [open, onClose]);
+  }, [open, onClose, plotOpen]);
 
   const zoomAround = (factor, clientX, clientY) => {
     const el = viewportRef.current;
@@ -126,25 +142,18 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
 
           {/* Walk connections between scenes */}
           <svg className={styles.connections} viewBox="0 0 100 100" preserveAspectRatio="none">
-            {scenePoints.map((pos) => {
-              const adjIds = sceneAdjacency[pos.id]?.map((a) => a.id) || [];
-              return adjIds.map((targetId) => {
-                const t = scenePoints.find((p) => p.id === targetId);
-                if (!t) return null;
-                return (
-                  <line
-                    key={`${pos.id}-${targetId}`}
-                    x1={pos.u * 100}
-                    y1={pos.v * 100}
-                    x2={t.u * 100}
-                    y2={t.v * 100}
-                    stroke="rgba(15,77,41,0.4)"
-                    strokeWidth="1.4"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                );
-              });
-            })}
+            {connectionLines.map((l) => (
+              <line
+                key={l.key}
+                x1={l.x1}
+                y1={l.y1}
+                x2={l.x2}
+                y2={l.y2}
+                stroke="rgba(15,77,41,0.4)"
+                strokeWidth="1.4"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
           </svg>
 
           {/* Plot pins */}
@@ -155,8 +164,9 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
               style={{ left: `${u * 100}%`, top: `${v * 100}%`, ...counterScale }}
               onClick={(e) => {
                 e.stopPropagation();
+                // Keep the map open underneath — the plot panel layers on top so
+                // the visitor can close it and pick another plot from the map.
                 onPlotSelect(plot);
-                onClose();
               }}
               aria-label={`${plot.name} details`}
             >

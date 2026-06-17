@@ -17,7 +17,7 @@ import styles from '../styles/MiniMap.module.css';
 // scene — game-minimap style. Click the radar for the full site map.
 const REGION_WORLD_MM = 220000;
 
-export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneSelect, cameraYawRef, adjacentScenes, onPlotSelect }) {
+export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneSelect, cameraYawRef, adjacentScenes, onPlotSelect, plotOpen }) {
   const coneRef = useRef(null);
   const coneAngleRef = useRef(0);
   const [expanded, setExpanded] = useState(false);
@@ -43,6 +43,20 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
     () => plots.filter((p) => p.map).map((p) => ({ id: p.id, name: p.name, u: p.map.u, v: p.map.v, plot: p })),
     []
   );
+
+  // Walk-graph edges, precomputed from the (static) scene positions so the radar
+  // doesn't rebuild this list on every recenter/re-render.
+  const connectionLines = useMemo(() => {
+    const byId = new Map(positions.map((p) => [p.id, p]));
+    const lines = [];
+    for (const pos of positions) {
+      for (const a of sceneAdjacency[pos.id] || []) {
+        const t = byId.get(a.id);
+        if (t) lines.push({ key: `${pos.id}-${a.id}`, x1: pos.u * 100, y1: pos.v * 100, x2: t.u * 100, y2: t.v * 100 });
+      }
+    }
+    return lines;
+  }, [positions]);
 
   // Region window: the full map is rendered as one large layer positioned so
   // the current scene sits at the radar's centre. All sizes are % of the
@@ -134,25 +148,18 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
 
             {/* Connection lines */}
             <svg className={styles.connections} viewBox="0 0 100 100" preserveAspectRatio="none">
-              {positions.map((pos) => {
-                const adjIds = sceneAdjacency[pos.id]?.map((a) => a.id) || [];
-                return adjIds.map((targetId) => {
-                  const targetPos = positions.find((p) => p.id === targetId);
-                  if (!targetPos) return null;
-                  return (
-                    <line
-                      key={`${pos.id}-${targetId}`}
-                      x1={pos.u * 100}
-                      y1={pos.v * 100}
-                      x2={targetPos.u * 100}
-                      y2={targetPos.v * 100}
-                      stroke="rgba(15,77,41,0.35)"
-                      strokeWidth="1.2"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  );
-                });
-              })}
+              {connectionLines.map((l) => (
+                <line
+                  key={l.key}
+                  x1={l.x1}
+                  y1={l.y1}
+                  x2={l.x2}
+                  y2={l.y2}
+                  stroke="rgba(15,77,41,0.35)"
+                  strokeWidth="1.2"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
             </svg>
 
             {/* Plot pins */}
@@ -233,6 +240,7 @@ export default function MiniMap({ scenes, currentScene, currentSceneId, onSceneS
           onSceneSelect(id);
         }}
         onPlotSelect={onPlotSelect}
+        plotOpen={plotOpen}
       />
     </>
   );

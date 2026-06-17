@@ -2,7 +2,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-overlay) + 7);
+  z-index: var(--z-popover);
   background: rgba(10, 16, 11, 0.4);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
@@ -19,7 +19,7 @@
   right: var(--space-lg);
   transform: translateY(-50%);
   width: min(330px, calc(100vw - 2 * var(--space-lg)));
-  z-index: calc(var(--z-overlay) + 8);
+  z-index: calc(var(--z-popover) + 1);
   background: var(--color-bg-glass);
   backdrop-filter: blur(var(--blur-lg));
   -webkit-backdrop-filter: blur(var(--blur-lg));

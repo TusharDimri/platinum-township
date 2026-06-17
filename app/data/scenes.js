@@ -269,6 +269,13 @@ export function getSceneById(id) {
   return scenes.find((s) => s.id === id);
 }
 
+// True when `toId` is a direct hotspot neighbour of `fromId` — i.e. you can walk
+// there in a single hop. Used to decide whether a map click needs the
+// jump-or-walk prompt (only non-neighbours do).
+export function areScenesAdjacent(fromId, toId) {
+  return (sceneAdjacency[fromId] || []).some((a) => a.id === toId);
+}
+
 // Returns array of { targetScene, yaw?, pitch? }
 export function getAdjacentScenes(id) {
   const adjacentData = sceneAdjacency[id] || [];
