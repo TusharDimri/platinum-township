@@ -10,7 +10,7 @@ export const SCALE_FACTOR = 1000;
 // Aerial scenes have massive Z (height) values
 const rawScenes = [
   {
-    id: 'scene-56', name: 'Platinum Township Gateway', type: 'ground', yawOffset: 0, csvName: 'Scene 56', file: 'Scene 56', x: 505909, y: 94380, z: 2628,
+    id: 'scene-56', name: 'Platinum Township Gateway', type: 'ground', yawOffset: 1.5938, csvName: 'Scene 56', file: 'Scene 56', x: 505909, y: 94380, z: 2628,
     hotspots: [
       { targetId: 'scene-57', yaw: 1.5629, pitch: -0.0034 },
     ]
