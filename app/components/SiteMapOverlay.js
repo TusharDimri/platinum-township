@@ -3,9 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useMotionValue } from 'framer-motion';
 import { sceneAdjacency } from '../data/scenes';
-import { plots } from '../data/plots';
+import { plots, plotAreaValue } from '../data/plots';
 import { SITE_MAP } from '../data/geo';
+import PlotSizeFilter from './PlotSizeFilter';
 import styles from '../styles/SiteMapOverlay.module.css';
+
+// Upper cap for the size-filter slider (Sq. Yd.).
+// The slider's internal max is SLIDER_CAP + one step (405) so the handle can
+// sit at exactly 400 (normal upper bound) OR go one step further to 405 to
+// activate "400+" mode (no upper limit — outliers included).
+const SLIDER_CAP = 400;
+const SLIDER_CAP_STEP = 5; // must match STEP in PlotSizeFilter
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 5;
@@ -60,10 +68,42 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
             num: p.info?.number ?? (p.name.match(/\d+/)?.[0] || ''),
             status,
             statusClass: STATUS_CLASS[status.toLowerCase()] || STATUS_CLASS.available,
+            area: plotAreaValue(p),
           };
         }),
     []
   );
+
+  // Size-filter bounds. The maximum is capped at SLIDER_CAP so the slider's
+  // full width covers the dense cluster of plots — plots above the cap are
+  // still shown whenever hi === max ("400+" mode; see visiblePins below).
+  const sizeBounds = useMemo(() => {
+    const values = pins.map((p) => p.area).filter((v) => v != null);
+    if (!values.length) return null;
+    const rawMin = Math.min(...values);
+    return {
+      min: Math.floor(rawMin / 50) * 50,
+      // One extra step past the cap so the handle can sit at 400 (normal)
+      // OR snap to 405 to activate "400+" mode.
+      max: SLIDER_CAP + SLIDER_CAP_STEP,
+    };
+  }, [pins]);
+
+  const [sizeRange, setSizeRange] = useState(() => (sizeBounds ? [sizeBounds.min, sizeBounds.max] : [0, 0]));
+  const [filterOpen, setFilterOpen] = useState(false);
+  const sizeFilterActive = sizeBounds ? (sizeRange[0] > sizeBounds.min || sizeRange[1] < sizeBounds.max) : false;
+
+  const visiblePins = useMemo(() => {
+    if (!sizeFilterActive) return pins;
+    const [lo, hi] = sizeRange;
+    const hiAtCap = hi > SLIDER_CAP;  // handle stepped past 400 → "400+" mode
+    return pins.filter((p) => {
+      if (p.area == null) return true;          // no data → always show
+      if (p.area < lo) return false;            // below lower bound → hide
+      if (hiAtCap) return true;                 // hi at cap → "400+", no upper limit
+      return p.area <= hi;                      // normal upper bound
+    });
+  }, [pins, sizeFilterActive, sizeRange, sizeBounds]);
 
   // Map each scene to a colour by its road/area, and build the legend (one entry
   // per road, in the order roads first appear). Same road name → same colour.
@@ -101,23 +141,30 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
       setZoom(1);
       x.set(0);
       y.set(0);
+      setFilterOpen(false);
+      if (sizeBounds) setSizeRange([sizeBounds.min, sizeBounds.max]);
     }
-  }, [open, x, y]);
+  }, [open, x, y, sizeBounds]);
 
   // Escape to close map — but if a plot panel is layered on top, let it handle
-  // Escape first (close the plot, keep the map open). We bail without stopping
-  // propagation so PlotInfoPanel's own capture-phase handler still fires.
+  // Escape first (close the plot, keep the map open). Next, an open size-filter
+  // panel takes Escape. We bail without stopping propagation so PlotInfoPanel's
+  // own capture-phase handler still fires.
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key !== 'Escape' || plotOpen) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (filterOpen) {
+        setFilterOpen(false);
+        return;
+      }
       onClose();
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true });
-  }, [open, onClose, plotOpen]);
+  }, [open, onClose, plotOpen, filterOpen]);
 
   const zoomAround = (factor, clientX, clientY) => {
     const el = viewportRef.current;
@@ -277,8 +324,8 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
             ))}
           </svg>
 
-          {/* Plot pins — numbered markers */}
-          {pins.map(({ plot, u, v, num, status, statusClass }) => (
+          {/* Plot pins — numbered markers (filtered by the size panel, if active) */}
+          {visiblePins.map(({ plot, u, v, num, status, statusClass }) => (
             <button
               key={plot.id}
               className={`${styles.pin} ${styles[statusClass]}`}
@@ -292,7 +339,7 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
               aria-label={`${plot.name} details`}
             >
               <span className={styles.pinDot}>{num}</span>
-              <span className={styles.pinLabel}>{plot.name} · {status}</span>
+              <span className={styles.pinLabel}>{plot.name}{/*  · {status} */}</span>
             </button>
           ))}
 
@@ -326,6 +373,16 @@ export default function SiteMapOverlay({ open, onClose, scenePoints, currentScen
       {/* Chrome — stop pointer/clicks from reaching the pan surface */}
       <header className={styles.topBar} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         <span className={styles.title}>Site Map</span>
+        <PlotSizeFilter
+          bounds={sizeBounds}
+          value={sizeRange}
+          onChange={setSizeRange}
+          open={filterOpen}
+          onToggle={() => setFilterOpen((v) => !v)}
+          onRequestClose={() => setFilterOpen(false)}
+          matchCount={visiblePins.length}
+          totalCount={pins.length}
+        />
         <button className={styles.closeButton} onClick={onClose} aria-label="Close site map">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M18 6L6 18M6 6l12 12" />

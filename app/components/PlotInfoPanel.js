@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import styles from '../styles/PlotInfoPanel.module.css';
 
 const FIELD_LABELS = [
-  ['area', 'Plot Area'],
+  ['totalArea', 'Total Plot Area'],
   ['front', 'Front'],
   ['rear', 'Rear'],
   ['depthR', 'Depth R'],
@@ -49,7 +49,7 @@ export default function PlotInfoPanel({ plot, onClose }) {
             <p className={styles.kicker}>Plot Details</p>
             <h2 className={styles.title}>{plot.name}</h2>
           </div>
-          <span className={`${styles.statusChip} ${statusClass}`}>{status}</span>
+          {/* <span className={`${styles.statusChip} ${statusClass}`}>{status}</span> */}
         </header>
 
         <div className={styles.rows}>

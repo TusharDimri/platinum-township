@@ -316,20 +316,51 @@ function resolveWorldPosition(rawPlot) {
   return triangulateRays(rays);
 }
 
-export const plots = PLOT_SOURCE.map((p) => ({
-  ...p,
-  marks: p.marks || {},
-  worldPosition: resolveWorldPosition(p),
-  // Pin position on the 2D site map (fractions of the image; null if no
-  // model-space coordinate is known — map pins require `sketchup`).
-  map: Array.isArray(p.sketchup) ? modelToMapFraction(p.sketchup[0], p.sketchup[1]) : null,
-}));
+export const plots = PLOT_SOURCE.map((p) => {
+  const info = { ...p.info };
+  const mArea = /([\d,]+(?:\.\d+)?)/.exec(info.area || '');
+  const mGarden = /([\d,]+(?:\.\d+)?)/.exec(info.gardenArea || '');
+  const valArea = mArea ? parseFloat(mArea[1].replace(/,/g, '')) : 0;
+  const valGarden = mGarden ? parseFloat(mGarden[1].replace(/,/g, '')) : 0;
+  
+  if (mArea || mGarden) {
+    const total = valArea + valGarden;
+    const unitMatch = /(Sq\. Yd\.|sq\.ft)/i.exec(info.area || info.gardenArea || '');
+    const unit = unitMatch ? unitMatch[0] : '';
+    info.totalArea = `${parseFloat(total.toFixed(2))} ${unit}`.trim();
+  } else {
+    info.totalArea = info.area;
+  }
+
+  if (valGarden === 0) {
+    delete info.gardenArea;
+  }
+
+  return {
+    ...p,
+    info,
+    marks: p.marks || {},
+    worldPosition: resolveWorldPosition(p),
+    // Pin position on the 2D site map (fractions of the image; null if no
+    // model-space coordinate is known — map pins require `sketchup`).
+    map: Array.isArray(p.sketchup) ? modelToMapFraction(p.sketchup[0], p.sketchup[1]) : null,
+  };
+});
 
 /**
  * All plot tags visible from a scene, each resolved to that scene's camera frame.
  * Returns [{ plot, yaw, pitch, distance }] — `distance` is null for authored
  * marks (unknown without a world position).
  */
+/**
+ * Numeric plot size parsed from `info.area` (e.g. "238.31 Sq. Yd." → 238.31).
+ * Returns null if the area can't be parsed (no size data to filter on).
+ */
+export function plotAreaValue(plot) {
+  const m = /([\d,]+(?:\.\d+)?)/.exec(plot.info?.totalArea || plot.info?.area || '');
+  return m ? parseFloat(m[1].replace(/,/g, '')) : null;
+}
+
 export function getPlotsForScene(sceneId) {
   const scene = getSceneById(sceneId);
   if (!scene) return [];
